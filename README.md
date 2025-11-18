@@ -74,7 +74,24 @@ MAX_COMPETITORS=10
 
 ## Usage
 
-### Basic Usage
+### Option 1: Web Dashboard (Recommended)
+
+Run the Capital Scout dashboard with Streamlit:
+
+```bash
+streamlit run streamlit_app.py
+```
+
+Then open your browser to `http://localhost:8501`
+
+**Features:**
+- 🎨 Professional UI with Capital Scout branding
+- 📊 Real-time progress tracking
+- 🖼️ Interactive visualization viewing
+- ⬇️ One-click report downloads
+- ⚙️ Easy configuration via sidebar
+
+### Option 2: Command Line Interface
 
 ```bash
 python main.py https://example-startup.com
@@ -210,8 +227,57 @@ Breakdown:
 - Target analysis: ~30 seconds
 - Competitor discovery: ~1-2 minutes
 - Competitor analysis: ~3-5 minutes (depends on number)
+- Funding analysis: ~2-3 minutes
 - Market analysis: ~30 seconds
 - Report generation: ~20 seconds
+- Visualizations: ~15 seconds
+
+## Deployment
+
+### Deploy to Railway (Recommended)
+
+1. **Push to GitHub**
+```bash
+git push origin main
+```
+
+2. **Deploy on Railway**
+- Go to [railway.app](https://railway.app)
+- Click "New Project" → "Deploy from GitHub repo"
+- Select your repository
+- Railway will automatically detect the `Dockerfile.streamlit`
+
+3. **Set Environment Variables**
+In Railway dashboard, add:
+```
+PARALLEL_AI_API_KEY=your_key
+GEMINI_API_KEY=your_key
+```
+
+4. **Deploy**
+Railway will build and deploy automatically. Your app will be live at `your-app.railway.app`
+
+**Cost**: ~$5-10/month on Railway's Hobby plan
+
+### Deploy with Docker
+
+```bash
+# Build the image
+docker build -f Dockerfile.streamlit -t capital-scout .
+
+# Run locally
+docker run -p 8501:8501 \
+  -e PARALLEL_AI_API_KEY=your_key \
+  -e GEMINI_API_KEY=your_key \
+  capital-scout
+```
+
+### Deploy to Other Platforms
+
+- **Render.com**: Use `Dockerfile.streamlit`, set port to 8501
+- **Google Cloud Run**: Deploy container, set to always allocate CPU
+- **AWS ECS/Fargate**: Use the Docker image with task definition
+- **Heroku**: Add `heroku.yml` pointing to Dockerfile.streamlit
 
 ## Best Practices
 

@@ -70,30 +70,48 @@ def save_intermediate_data(data: dict, filename: str, data_dir: str = "data"):
     print(f"  💾 Saved intermediate data: {filepath}")
 
 
-def run_analysis(
+def run_due_diligence(
     startup_url: str,
     startup_name: str = None,
     max_competitors: int = 10,
-    skip_visualizations: bool = False
+    skip_visualizations: bool = False,
+    parallel_api_key: str = None,
+    gemini_api_key: str = None
 ):
     """
-    Run complete market research analysis.
+    Run complete market research analysis (Due Diligence).
+
+    This function can be called programmatically from other Python code
+    or via the CLI. It returns a comprehensive dictionary with all results.
 
     Args:
         startup_url: URL of target startup
         startup_name: Optional company name
         max_competitors: Maximum number of competitors to analyze
         skip_visualizations: Skip creating visualizations
+        parallel_api_key: Parallel AI API key (optional, uses env if not provided)
+        gemini_api_key: Gemini API key (optional, uses env if not provided)
 
     Returns:
-        Tuple of (report_path, visualization_paths) or None if failed
+        Dictionary with analysis results or None if failed:
+        {
+            'startup_info': Dict,
+            'competitors': List[Dict],
+            'market_analysis': Dict,
+            'funding_landscape': Dict,
+            'report_path': str,
+            'visualization_paths': List[str],
+            'timestamp': str
+        }
     """
-    # Validate environment
-    keys = validate_environment()
-    if not keys:
-        return None
-
-    parallel_key, gemini_key = keys
+    # Use provided keys or validate environment
+    if parallel_api_key and gemini_api_key:
+        parallel_key, gemini_key = parallel_api_key, gemini_api_key
+    else:
+        keys = validate_environment()
+        if not keys:
+            return None
+        parallel_key, gemini_key = keys
 
     # Initialize components
     print("🔧 Initializing analysis components...")
@@ -324,7 +342,17 @@ def run_analysis(
     print(f"\n💾 Intermediate data saved in: data/")
     print(f"\n✨ Analysis completed successfully!\n")
 
-    return report_path, visualization_paths
+    # Return comprehensive results dictionary
+    return {
+        'startup_info': startup_info,
+        'competitors': competitor_details,
+        'market_analysis': market_analysis,
+        'funding_landscape': funding_landscape,
+        'report_path': report_path,
+        'visualization_paths': visualization_paths,
+        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'success': True
+    }
 
 
 def main():
@@ -382,15 +410,15 @@ Environment Variables:
         print("   URL must start with http:// or https://")
         sys.exit(1)
 
-    # Run analysis
-    result = run_analysis(
+    # Run due diligence
+    result = run_due_diligence(
         startup_url=args.url,
         startup_name=args.name,
         max_competitors=args.max_competitors,
         skip_visualizations=args.skip_viz
     )
 
-    if result:
+    if result and result.get('success'):
         sys.exit(0)
     else:
         print("\n❌ Analysis failed. Check error messages above.")
