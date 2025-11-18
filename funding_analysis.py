@@ -4,6 +4,8 @@ Analyzes funding data, investment rounds, and investor landscape.
 """
 
 import random
+import requests
+import json
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import google.generativeai as genai
@@ -56,14 +58,27 @@ class FundingClient:
 
     ROUND_TYPES = ["Seed", "Series A", "Series B", "Series C", "Series D+"]
 
-    def __init__(self, use_simulation: bool = True):
+    def __init__(self, parallel_api_key: str = None, gemini_api_key: str = None, use_simulation: bool = False):
         """
         Initialize funding client.
 
         Args:
+            parallel_api_key: Parallel AI API key for real data search
+            gemini_api_key: Google Gemini API key for parsing search results
             use_simulation: If True, use simulated data. If False, use real API.
         """
         self.use_simulation = use_simulation
+        self.parallel_api_key = parallel_api_key
+        self.gemini_api_key = gemini_api_key
+
+        if not use_simulation and gemini_api_key:
+            genai.configure(api_key=gemini_api_key)
+            self.gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
+
+        self.parallel_headers = {
+            "x-api-key": parallel_api_key if parallel_api_key else "",
+            "Content-Type": "application/json"
+        }
 
     def _simulate_funding_data(self, company_name: str) -> Optional[Dict]:
         """
@@ -139,27 +154,133 @@ class FundingClient:
 
     def _fetch_real_funding_data(self, company_name: str) -> Optional[Dict]:
         """
-        Fetch real funding data from API (Crunchbase, PitchBook, etc.)
+        Fetch real funding data using Parallel AI Search + Gemini.
 
         Args:
             company_name: Name of the company
 
         Returns:
-            Dictionary with funding data or None
-
-        Note:
-            This is a placeholder for real API integration.
-            Replace with actual API calls in production.
+            Dictionary with funding data or None if no reliable data found
         """
-        # TODO: Implement real API integration
-        # Example:
-        # response = requests.get(
-        #     f"https://api.crunchbase.com/v4/entities/organizations/{company_name}",
-        #     headers={"X-cb-user-key": self.api_key}
-        # )
-        # return response.json()
+        if not self.parallel_api_key or not self.gemini_api_key:
+            print(f"      ℹ No API keys configured for real funding data search")
+            return None
 
-        raise NotImplementedError("Real API integration not implemented yet")
+        try:
+            # Search for funding announcements and data
+            print(f"      → Searching for funding data: {company_name}")
+
+            search_queries = [
+                f"{company_name} funding round investment",
+                f"{company_name} Series A B C funding",
+                f"{company_name} raised capital investors"
+            ]
+
+            search_response = requests.post(
+                "https://api.parallel.ai/v1beta/search",
+                headers=self.parallel_headers,
+                json={
+                    "objective": f"Find recent news, press releases, and announcements about {company_name}'s funding rounds, investment amounts, and investors.",
+                    "search_queries": search_queries,
+                    "max_results": 5,
+                    "mode": "one-shot"
+                },
+                timeout=60
+            )
+            search_response.raise_for_status()
+            search_results = search_response.json()
+
+            if not search_results.get("results"):
+                print(f"      ℹ No funding news found for {company_name}")
+                return None
+
+            # Extract funding info from search results
+            article_urls = [r["url"] for r in search_results["results"][:3]]
+
+            extract_response = requests.post(
+                "https://api.parallel.ai/v1beta/extract",
+                headers=self.parallel_headers,
+                json={
+                    "urls": article_urls,
+                    "objective": f"Extract funding information for {company_name}: funding round names (Seed, Series A/B/C), amounts raised, investor names, and dates.",
+                    "excerpts": True
+                },
+                timeout=60
+            )
+            extract_response.raise_for_status()
+            extract_data = extract_response.json()
+
+            # Combine extracted content
+            combined_content = ""
+            for result in extract_data.get("results", []):
+                content = (
+                    result.get("content", "") or
+                    result.get("extracted_content", "") or
+                    str(result.get("excerpts", ""))
+                )
+                if content:
+                    combined_content += content + "\n\n"
+
+            if not combined_content.strip():
+                print(f"      ℹ No funding content extracted for {company_name}")
+                return None
+
+            # Use Gemini to parse and structure the funding data
+            prompt = f"""Extract funding information for the company: {company_name}
+
+CONTENT FROM NEWS ARTICLES:
+{combined_content[:8000]}
+
+CRITICAL: Only extract information if you find EXPLICIT, VERIFIABLE mentions of funding rounds for {company_name}.
+If the content does NOT clearly mention {company_name}'s funding, return null.
+
+If funding data is found, return a JSON object:
+{{
+  "latest_round": "Round name (e.g., Seed, Series A, Series B)" or null,
+  "latest_amount": amount as integer or null,
+  "total_funding": total amount raised as integer or null,
+  "investors": ["Investor 1", "Investor 2"] or [],
+  "funding_date": "YYYY-MM-DD" or null,
+  "rounds": [
+    {{"round": "Seed", "amount": 1000000, "date": "2020-01-15", "investors": ["Angel Investor"]}},
+    {{"round": "Series A", "amount": 5000000, "date": "2021-06-20", "investors": ["VC Firm"]}}
+  ] or []
+}}
+
+If NO reliable funding data is found for {company_name}, respond with: null
+
+Respond ONLY with valid JSON (object or null), no markdown."""
+
+            response = self.gemini_model.generate_content(prompt)
+            response_text = response.text.strip()
+
+            # Clean markdown
+            if response_text.startswith("```json"):
+                response_text = response_text[7:]
+            if response_text.startswith("```"):
+                response_text = response_text[3:]
+            if response_text.endswith("```"):
+                response_text = response_text[:-3]
+            response_text = response_text.strip()
+
+            # Check if response is null
+            if response_text.lower() == "null":
+                print(f"      ℹ No verified funding data found for {company_name}")
+                return None
+
+            funding_data = json.loads(response_text)
+
+            # Validate we got meaningful data
+            if not funding_data or not funding_data.get("latest_round"):
+                print(f"      ℹ No verified funding data found for {company_name}")
+                return None
+
+            print(f"        Latest: {funding_data.get('latest_round')} - ${funding_data.get('latest_amount', 0):,}")
+            return funding_data
+
+        except Exception as e:
+            print(f"      ⚠ Error fetching real funding data for {company_name}: {e}")
+            return None
 
     def get_funding_data(self, company_name: str) -> Optional[Dict]:
         """
@@ -185,17 +306,22 @@ class FundingClient:
 class FundingAnalyzer:
     """Analyzes funding data and generates insights."""
 
-    def __init__(self, gemini_api_key: str, use_simulation: bool = True):
+    def __init__(self, parallel_api_key: str, gemini_api_key: str, use_simulation: bool = False):
         """
         Initialize Funding Analyzer.
 
         Args:
-            gemini_api_key: Google Gemini API key
-            use_simulation: Whether to use simulated data
+            parallel_api_key: Parallel AI API key for searching funding data
+            gemini_api_key: Google Gemini API key for parsing data
+            use_simulation: Whether to use simulated data (default: False)
         """
-        self.client = FundingClient(use_simulation=use_simulation)
+        self.client = FundingClient(
+            parallel_api_key=parallel_api_key,
+            gemini_api_key=gemini_api_key,
+            use_simulation=use_simulation
+        )
 
-        # Configure Gemini
+        # Configure Gemini for analysis
         genai.configure(api_key=gemini_api_key)
         self.gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
 
