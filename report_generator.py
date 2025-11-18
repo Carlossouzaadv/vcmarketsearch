@@ -21,7 +21,7 @@ class ReportGenerator:
             gemini_api_key: Google Gemini API key
         """
         genai.configure(api_key=gemini_api_key)
-        self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+        self.gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
 
     def generate_executive_summary(
         self,

@@ -23,13 +23,14 @@ class CompetitorAnalyzer:
         self.parallel_api_key = parallel_api_key
         self.base_url = "https://api.parallel.ai"
         self.headers = {
-            "Authorization": f"Bearer {parallel_api_key}",
-            "Content-Type": "application/json"
+            "x-api-key": parallel_api_key,
+            "Content-Type": "application/json",
+            "parallel-beta": "search-extract-2025-10-10"
         }
 
         # Configure Gemini
         genai.configure(api_key=gemini_api_key)
-        self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+        self.gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
 
     def analyze_competitor(
         self,

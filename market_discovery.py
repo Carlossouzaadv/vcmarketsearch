@@ -32,7 +32,7 @@ class MarketDiscovery:
 
         # Configure Gemini
         genai.configure(api_key=gemini_api_key)
-        self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+        self.gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
 
     def analyze_startup(self, url: str, name: Optional[str] = None) -> Dict:
         """
