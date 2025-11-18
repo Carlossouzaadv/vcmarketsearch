@@ -1,0 +1,44 @@
+# Dockerfile for Capital Scout Streamlit Dashboard
+# Version: 2.1 - Force complete rebuild without cache
+FROM python:3.10-slim
+
+# Cache buster - change this to force rebuild
+ARG CACHE_BUST=1763495221
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+
+# Install Python dependencies (no cache to force fresh install)
+RUN echo "Cache bust: ${CACHE_BUST}" && \
+    pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip list | grep google-generativeai
+
+# Copy entrypoint script
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+# Copy application code
+COPY . .
+
+# Create directories for data and reports
+RUN mkdir -p data reports
+
+# Expose Streamlit port (Railway will override with $PORT)
+EXPOSE 8501
+
+# Health check - disable for Railway (Railway has its own)
+# HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health || exit 1
+
+# Run Streamlit app via entrypoint script
+ENTRYPOINT ["/app/entrypoint.sh"]
