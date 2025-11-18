@@ -234,13 +234,27 @@ Exclude:
             print(f"  ⚠ Warning: Extraction failed: {e}")
             return []
 
+        # Debug: Print API response structure
+        print(f"  → Received {len(extract_data.get('results', []))} results from extract API")
+
         # Combine all extraction results
         combined_content = ""
-        for result in extract_data.get("results", []):
-            combined_content += result.get("content", "") + "\n\n"
+        for idx, result in enumerate(extract_data.get("results", [])):
+            # Try different possible field names
+            content = (
+                result.get("content", "") or
+                result.get("extracted_content", "") or
+                result.get("text", "") or
+                result.get("data", "") or
+                str(result.get("excerpts", ""))
+            )
+            if content:
+                combined_content += content + "\n\n"
+                print(f"    ✓ Extracted content from result {idx + 1}")
 
         if not combined_content.strip():
             print("  ⚠ No content extracted from articles")
+            print(f"  → Debug: API returned keys: {list(extract_data.get('results', [{}])[0].keys()) if extract_data.get('results') else 'no results'}")
             return []
 
         # Step 3: Use Gemini to parse and filter competitors
