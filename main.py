@@ -17,6 +17,7 @@ from market_discovery import MarketDiscovery
 from competitor_analysis import CompetitorAnalyzer
 from report_generator import ReportGenerator
 from visualization import MarketVisualizer
+from funding_analysis import FundingAnalyzer
 
 
 def print_banner():
@@ -98,6 +99,7 @@ def run_analysis(
     print("🔧 Initializing analysis components...")
     discovery = MarketDiscovery(parallel_key, gemini_key)
     analyzer = CompetitorAnalyzer(parallel_key, gemini_key)
+    funding_analyzer = FundingAnalyzer(gemini_key, use_simulation=True)
     reporter = ReportGenerator(gemini_key)
     visualizer = MarketVisualizer() if not skip_visualizations else None
 
@@ -179,7 +181,67 @@ def run_analysis(
         print("\n⚠️  WARNING: No competitors were successfully analyzed")
 
     print("\n" + "="*70)
-    print("STEP 4: IDENTIFYING MARKET OPPORTUNITIES")
+    print("STEP 4: ANALYZING FUNDING & CAPITALIZATION")
+    print("="*70)
+
+    # Analyze funding for target startup
+    print(f"\n  📊 Analyzing funding data...")
+    print(f"\n  [Target] {startup_info['name']}")
+
+    try:
+        target_funding = funding_analyzer.analyze_funding(startup_info['name'])
+        startup_info['funding_data'] = target_funding
+
+        if target_funding.get('is_funded'):
+            print(f"    ✓ Latest Round: {target_funding['latest_round']}")
+            print(f"    ✓ Total Funding: ${target_funding['total_funding']:,}")
+        else:
+            print(f"    ℹ No funding data available")
+
+    except Exception as e:
+        print(f"    ⚠️  Failed to analyze funding: {e}")
+        startup_info['funding_data'] = {"has_funding_data": False, "is_funded": False}
+
+    # Analyze funding for competitors
+    print(f"\n  [Competitors]")
+    for i, comp in enumerate(competitor_details, 1):
+        print(f"    [{i}/{len(competitor_details)}] {comp['name']}")
+
+        try:
+            comp_funding = funding_analyzer.analyze_funding(comp['name'])
+            comp['funding_data'] = comp_funding
+
+            if comp_funding.get('is_funded'):
+                print(f"        Latest: {comp_funding['latest_round']} - ${comp_funding['total_funding']:,}")
+
+        except Exception as e:
+            print(f"        ⚠️  Failed: {e}")
+            comp['funding_data'] = {"has_funding_data": False, "is_funded": False}
+
+    # Analyze overall funding landscape
+    print(f"\n  → Analyzing market funding landscape...")
+
+    try:
+        funding_landscape = funding_analyzer.analyze_market_funding_landscape(
+            target_startup=startup_info,
+            competitors=competitor_details
+        )
+
+        funded_count = funding_landscape.get('funded_competitors_count', 0)
+        total_market = funding_landscape.get('total_market_funding', 0)
+
+        print(f"\n✅ Funding analysis complete:")
+        print(f"   Funded competitors: {funded_count}/{len(competitor_details)}")
+        print(f"   Total market funding: ${total_market:,}")
+
+        save_intermediate_data(funding_landscape, "funding_landscape")
+
+    except Exception as e:
+        print(f"\n⚠️  Warning: Funding landscape analysis failed: {e}")
+        funding_landscape = {}
+
+    print("\n" + "="*70)
+    print("STEP 5: IDENTIFYING MARKET OPPORTUNITIES")
     print("="*70)
 
     try:
@@ -204,14 +266,15 @@ def run_analysis(
         return None
 
     print("\n" + "="*70)
-    print("STEP 5: GENERATING REPORT")
+    print("STEP 6: GENERATING REPORT")
     print("="*70)
 
     try:
         report_path = reporter.generate_report(
             startup=startup_info,
             competitors=competitor_details,
-            market_analysis=market_analysis
+            market_analysis=market_analysis,
+            funding_landscape=funding_landscape
         )
 
         print(f"\n✅ Report generated: {report_path}")
@@ -225,19 +288,22 @@ def run_analysis(
 
     if not skip_visualizations and visualizer and competitor_details:
         print("\n" + "="*70)
-        print("STEP 6: CREATING VISUALIZATIONS")
+        print("STEP 7: CREATING VISUALIZATIONS")
         print("="*70)
 
         try:
-            market_map, comp_matrix = visualizer.create_all_visualizations(
+            market_map, comp_matrix, investor_network = visualizer.create_all_visualizations(
                 competitors=competitor_details,
-                startup=startup_info
+                startup=startup_info,
+                funding_landscape=funding_landscape
             )
 
             if market_map:
                 visualization_paths.append(market_map)
             if comp_matrix:
                 visualization_paths.append(comp_matrix)
+            if investor_network:
+                visualization_paths.append(investor_network)
 
             print(f"\n✅ Created {len(visualization_paths)} visualizations")
 

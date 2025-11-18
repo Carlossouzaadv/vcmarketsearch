@@ -13,14 +13,15 @@ VC Market Research Agent is a comprehensive market analysis tool that automates 
 
 - **🔍 Intelligent Market Discovery** - Automatically identifies competitors using advanced search capabilities
 - **📊 Deep Competitive Analysis** - Extracts and analyzes competitor strengths, weaknesses, and positioning
+- **💰 Funding & Capitalization Analysis** - Tracks funding rounds, investors, and capital intensity
 - **💡 Opportunity Identification** - Discovers market whitespace and untapped opportunities
-- **📈 Visual Market Maps** - Creates positioning maps and competitive matrices
+- **📈 Visual Analytics** - Creates positioning maps, competitive matrices, and investor network graphs
 - **📄 Investment Reports** - Generates comprehensive markdown reports with executive summaries
 
 ## How It Works
 
 ```
-Startup URL → Analyze Company → Discover Competitors → Deep Analysis → Identify Gaps → Generate Report
+Startup URL → Analyze Company → Discover Competitors → Deep Analysis → Funding Analysis → Identify Gaps → Generate Report
 ```
 
 ### Analysis Pipeline
@@ -28,8 +29,9 @@ Startup URL → Analyze Company → Discover Competitors → Deep Analysis → I
 1. **Company Understanding** - Extracts business model, target market, and value proposition
 2. **Competitor Discovery** - Finds relevant competitors through intelligent search and verification
 3. **Competitive Analysis** - Performs deep dive into each competitor's offerings and positioning
-4. **Whitespace Identification** - Analyzes market patterns to identify opportunities
-5. **Report Generation** - Creates actionable reports with visualizations
+4. **Funding Analysis** - Collects funding rounds, investors, and capitalization data
+5. **Whitespace Identification** - Analyzes market patterns and funding dynamics to identify opportunities
+6. **Report Generation** - Creates actionable reports with visualizations and investor insights
 
 ## Installation
 
@@ -118,6 +120,7 @@ Comprehensive markdown report including:
 - Target company analysis
 - Market overview and trends
 - Detailed competitor profiles
+- **Funding analysis & investor landscape** (NEW!)
 - Market opportunities and whitespace
 - Strategic recommendations
 
@@ -126,6 +129,7 @@ Comprehensive markdown report including:
 
 - **Market Map** - Positioning chart showing competitive landscape
 - **Competitive Matrix** - Feature comparison heatmap
+- **Investor Network Graph** - Network visualization of investor-company relationships (NEW!)
 
 ### 3. Intermediate Data
 **Location:** `data/`
@@ -134,6 +138,7 @@ JSON files containing raw analysis data:
 - `startup_info_TIMESTAMP.json` - Target company data
 - `competitors_TIMESTAMP.json` - Discovered competitors
 - `competitor_analysis_TIMESTAMP.json` - Detailed competitor insights
+- `funding_landscape_TIMESTAMP.json` - Funding and investor data (NEW!)
 - `market_analysis_TIMESTAMP.json` - Market gaps and opportunities
 
 ## Project Structure
@@ -143,6 +148,7 @@ vcmarketsearch/
 ├── main.py                    # Main orchestrator
 ├── market_discovery.py        # Competitor discovery engine
 ├── competitor_analysis.py     # Competitive analysis module
+├── funding_analysis.py        # Funding & investor analysis (NEW!)
 ├── report_generator.py        # Report generation
 ├── visualization.py           # Visual analytics
 ├── requirements.txt           # Python dependencies
@@ -157,6 +163,7 @@ vcmarketsearch/
 - **Parallel AI API** - Web search and data extraction
 - **Google Gemini** - Natural language processing and analysis
 - **Matplotlib & Seaborn** - Data visualization
+- **NetworkX** - Network graph analysis and visualization
 - **Pandas & NumPy** - Data processing
 
 ## Use Cases

@@ -6,12 +6,14 @@ Creates market maps and competitive matrices for visual analysis.
 import os
 import json
 from datetime import datetime
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import seaborn as sns
 import pandas as pd
 import numpy as np
+import networkx as nx
+from collections import Counter
 
 
 class MarketVisualizer:
@@ -301,26 +303,220 @@ class MarketVisualizer:
         print(f"  ✓ Competitive matrix saved to {filepath}")
         return filepath
 
+    def generate_investor_network_graph(
+        self,
+        competitors: List[Dict],
+        startup: Dict,
+        funding_landscape: Dict,
+        output_dir: str = "reports"
+    ) -> str:
+        """
+        Generate investor network graph showing connections between investors and companies.
+
+        Args:
+            competitors: List of competitor analyses with funding data
+            startup: Target startup information with funding data
+            funding_landscape: Market funding landscape analysis
+            output_dir: Directory to save visualization
+
+        Returns:
+            Path to saved visualization
+        """
+        # Collect all investor-company relationships
+        relationships = []
+
+        # Add target startup relationships
+        target_funding = startup.get('funding_data', {})
+        if target_funding.get('is_funded'):
+            for investor in target_funding.get('key_investors', []):
+                relationships.append({
+                    'investor': investor,
+                    'company': startup.get('name', 'Target'),
+                    'is_target': True,
+                    'funding': target_funding.get('total_funding', 0)
+                })
+
+        # Add competitor relationships
+        for comp in competitors:
+            comp_funding = comp.get('funding_data', {})
+            if comp_funding.get('is_funded'):
+                for investor in comp_funding.get('key_investors', []):
+                    relationships.append({
+                        'investor': investor,
+                        'company': comp.get('name', 'Unknown'),
+                        'is_target': False,
+                        'funding': comp_funding.get('total_funding', 0)
+                    })
+
+        if not relationships:
+            print("  ⚠ No funding relationships to visualize")
+            return ""
+
+        # Create network graph
+        G = nx.Graph()
+
+        # Add nodes and edges
+        for rel in relationships:
+            G.add_node(rel['company'], node_type='company', is_target=rel['is_target'])
+            G.add_node(rel['investor'], node_type='investor')
+            G.add_edge(rel['investor'], rel['company'], weight=rel['funding'])
+
+        # Calculate layout
+        pos = nx.spring_layout(G, k=2, iterations=50, seed=42)
+
+        # Create figure
+        fig, ax = plt.subplots(figsize=(16, 12))
+
+        # Separate nodes by type
+        company_nodes = [n for n, d in G.nodes(data=True) if d.get('node_type') == 'company']
+        investor_nodes = [n for n, d in G.nodes(data=True) if d.get('node_type') == 'investor']
+        target_node = [n for n, d in G.nodes(data=True) if d.get('is_target', False)]
+
+        # Draw edges
+        nx.draw_networkx_edges(
+            G, pos, alpha=0.2, width=1.5, edge_color='#CCCCCC', ax=ax
+        )
+
+        # Draw investor nodes (blue circles)
+        nx.draw_networkx_nodes(
+            G, pos,
+            nodelist=investor_nodes,
+            node_color='#4ECDC4',
+            node_size=1000,
+            node_shape='o',
+            alpha=0.9,
+            edgecolors='white',
+            linewidths=2,
+            ax=ax
+        )
+
+        # Draw company nodes (green squares)
+        company_nodes_without_target = [n for n in company_nodes if n not in target_node]
+        nx.draw_networkx_nodes(
+            G, pos,
+            nodelist=company_nodes_without_target,
+            node_color='#95E1D3',
+            node_size=800,
+            node_shape='s',
+            alpha=0.8,
+            edgecolors='white',
+            linewidths=2,
+            ax=ax
+        )
+
+        # Draw target company node (red star)
+        if target_node:
+            nx.draw_networkx_nodes(
+                G, pos,
+                nodelist=target_node,
+                node_color='#FF6B6B',
+                node_size=1500,
+                node_shape='*',
+                alpha=1.0,
+                edgecolors='white',
+                linewidths=3,
+                ax=ax
+            )
+
+        # Draw labels
+        labels = {node: node for node in G.nodes()}
+        nx.draw_networkx_labels(
+            G, pos,
+            labels,
+            font_size=8,
+            font_weight='normal',
+            font_color='#333333',
+            ax=ax
+        )
+
+        # Title and legend
+        ax.set_title(
+            f'Investor Network Analysis: {startup.get("name", "Target Company")}',
+            fontsize=16,
+            fontweight='bold',
+            pad=20
+        )
+
+        # Create legend
+        from matplotlib.lines import Line2D
+        legend_elements = [
+            Line2D([0], [0], marker='*', color='w', markerfacecolor='#FF6B6B',
+                   markersize=15, label='Target Company', markeredgewidth=2, markeredgecolor='white'),
+            Line2D([0], [0], marker='s', color='w', markerfacecolor='#95E1D3',
+                   markersize=10, label='Competitors', markeredgewidth=2, markeredgecolor='white'),
+            Line2D([0], [0], marker='o', color='w', markerfacecolor='#4ECDC4',
+                   markersize=10, label='Investors', markeredgewidth=2, markeredgecolor='white')
+        ]
+        ax.legend(handles=legend_elements, loc='upper left', fontsize=10, frameon=True)
+
+        # Add statistics
+        investor_count = len(investor_nodes)
+        company_count = len(company_nodes)
+
+        # Find most connected investors
+        investor_degrees = {n: G.degree(n) for n in investor_nodes}
+        top_investors = sorted(investor_degrees.items(), key=lambda x: x[1], reverse=True)[:3]
+
+        stats_text = f"Network Statistics:\n"
+        stats_text += f"• Investors: {investor_count}\n"
+        stats_text += f"• Companies: {company_count}\n"
+        stats_text += f"• Connections: {G.number_of_edges()}\n\n"
+        stats_text += "Most Active Investors:\n"
+        for inv, degree in top_investors:
+            stats_text += f"• {inv}: {degree} investments\n"
+
+        ax.text(
+            0.02, 0.98, stats_text,
+            transform=ax.transAxes,
+            fontsize=9,
+            verticalalignment='top',
+            bbox=dict(boxstyle='round', facecolor='white', alpha=0.8, edgecolor='gray')
+        )
+
+        ax.axis('off')
+        plt.tight_layout()
+
+        # Save
+        os.makedirs(output_dir, exist_ok=True)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"investor_network_{timestamp}.png"
+        filepath = os.path.join(output_dir, filename)
+
+        plt.savefig(filepath, dpi=300, bbox_inches='tight', facecolor='white')
+        plt.close()
+
+        print(f"  ✓ Investor network graph saved to {filepath}")
+        return filepath
+
     def create_all_visualizations(
         self,
         competitors: List[Dict],
         startup: Dict,
+        funding_landscape: Optional[Dict] = None,
         output_dir: str = "reports"
-    ) -> Tuple[str, str]:
+    ) -> Tuple[str, str, str]:
         """
         Create all visualizations.
 
         Args:
             competitors: List of competitor analyses
             startup: Target startup information
+            funding_landscape: Market funding landscape analysis (optional)
             output_dir: Directory to save visualizations
 
         Returns:
-            Tuple of (market_map_path, competitive_matrix_path)
+            Tuple of (market_map_path, competitive_matrix_path, investor_network_path)
         """
         print("  → Creating visualizations")
 
         market_map_path = self.create_market_map(competitors, startup, output_dir)
         matrix_path = self.create_competitive_matrix(competitors, startup, output_dir)
 
-        return market_map_path, matrix_path
+        # Create investor network graph if funding data available
+        investor_network_path = ""
+        if funding_landscape:
+            investor_network_path = self.generate_investor_network_graph(
+                competitors, startup, funding_landscape, output_dir
+            )
+
+        return market_map_path, matrix_path, investor_network_path
