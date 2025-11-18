@@ -74,6 +74,17 @@ class MarketDiscovery:
             response.raise_for_status()
             extract_data = response.json()
 
+            # DEBUG: Print raw API response
+            print(f"\n  🔍 DEBUG: Raw Parallel AI Extract Response:")
+            print(f"  → Response keys: {list(extract_data.keys())}")
+            if extract_data.get("results"):
+                print(f"  → Number of results: {len(extract_data['results'])}")
+                result = extract_data["results"][0]
+                print(f"  → Result keys: {list(result.keys())}")
+            else:
+                print(f"  → No results in response!")
+            print(f"  → Full response (first 2000 chars):\n{json.dumps(extract_data, indent=2)[:2000]}\n")
+
             if not extract_data.get("results"):
                 raise ValueError("No extraction results returned")
 
@@ -83,8 +94,17 @@ class MarketDiscovery:
                 result.get("content", "") or
                 result.get("extracted_content", "") or
                 result.get("text", "") or
+                result.get("data", "") or
                 str(result.get("excerpts", ""))
             )
+
+            # DEBUG: Print content details
+            print(f"  🔍 DEBUG: Extracted Content:")
+            print(f"  → Content length: {len(content)} characters")
+            print(f"  → Content preview (first 500 chars):")
+            print(f"     {content[:500]}")
+            print(f"  → Content preview (last 300 chars):")
+            print(f"     ...{content[-300:]}\n")
 
             if not content.strip():
                 raise ValueError("Empty content extracted")
@@ -97,11 +117,18 @@ class MarketDiscovery:
         # Use Gemini to structure the information
         print("  → Structuring data with Gemini")
 
+        # Truncate content for Gemini
+        truncated_content = content[:8000]
+
+        print(f"  🔍 DEBUG: Gemini Input:")
+        print(f"  → Sending {len(truncated_content)} chars to Gemini")
+        print(f"  → Domain from URL: {url.split('//')[1].split('/')[0]}\n")
+
         prompt = f"""Analyze this website content and extract company information.
 
 WEBSITE URL: {url}
 CONTENT:
-{content[:8000]}
+{truncated_content}
 
 Return a JSON object with these fields:
 - name: THE EXACT company name from THIS website (look for logo text, header, title). NOT a similar company! (string)
@@ -122,6 +149,11 @@ Respond ONLY with valid JSON, no markdown formatting."""
 
         try:
             response = self.gemini_model.generate_content(prompt)
+
+            # DEBUG: Print Gemini response
+            print(f"  🔍 DEBUG: Gemini Raw Response:")
+            print(f"  → Response text (first 1000 chars):")
+            print(f"     {response.text[:1000]}\n")
             # Clean response - remove markdown code blocks if present
             response_text = response.text.strip()
             if response_text.startswith("```json"):
@@ -138,6 +170,12 @@ Respond ONLY with valid JSON, no markdown formatting."""
             startup_info["url"] = url
             if name:
                 startup_info["name"] = name
+
+            # DEBUG: Print final parsed result
+            print(f"  🔍 DEBUG: Final Parsed Startup Info:")
+            print(f"  → Company Name: {startup_info.get('name', 'N/A')}")
+            print(f"  → Category: {startup_info.get('category', 'N/A')}")
+            print(f"  → Description (first 200 chars): {str(startup_info.get('description', 'N/A'))[:200]}...\n")
 
             return startup_info
 
