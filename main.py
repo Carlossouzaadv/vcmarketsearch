@@ -127,10 +127,24 @@ def run_due_diligence(
 
     try:
         startup_info = discovery.analyze_startup(startup_url, startup_name)
-        print(f"\n✅ Analyzed: {startup_info['name']}")
-        print(f"   Category: {startup_info['category']}")
-        print(f"   Target Market: {startup_info['target_market']}")
-        print(f"   Keywords: {', '.join(startup_info.get('keywords', [])[:5])}")
+
+        # Check if analysis was successful
+        if (startup_info['name'] == "Unknown Company" or
+            startup_info['category'] == "Unknown" or
+            not startup_info.get('keywords')):
+            print(f"\n⚠️  WARNING: Failed to extract complete startup information")
+            print(f"   Name: {startup_info['name']}")
+            print(f"   Category: {startup_info['category']}")
+            print(f"   This will significantly limit the quality of competitor discovery")
+            print(f"\n   Possible causes:")
+            print(f"   - Website might be blocking automated access")
+            print(f"   - Gemini API might be unavailable")
+            print(f"   - API keys might be invalid")
+        else:
+            print(f"\n✅ Analyzed: {startup_info['name']}")
+            print(f"   Category: {startup_info['category']}")
+            print(f"   Target Market: {startup_info['target_market']}")
+            print(f"   Keywords: {', '.join(startup_info.get('keywords', [])[:5])}")
 
         save_intermediate_data(startup_info, "startup_info")
 
@@ -340,7 +354,26 @@ def run_due_diligence(
             print(f"   - {path}")
 
     print(f"\n💾 Intermediate data saved in: data/")
-    print(f"\n✨ Analysis completed successfully!\n")
+
+    # Determine if analysis was truly successful
+    analysis_success = (
+        startup_info['name'] != "Unknown Company" and
+        len(competitor_details) > 0 and
+        startup_info['category'] != "Unknown"
+    )
+
+    if analysis_success:
+        print(f"\n✅ Analysis completed successfully!")
+        print(f"   Found {len(competitor_details)} competitors")
+        print(f"   Generated comprehensive report with insights\n")
+    else:
+        print(f"\n⚠️  Analysis completed with LIMITED results")
+        print(f"   Competitors found: {len(competitor_details)}")
+        print(f"   Startup data quality: {'POOR' if startup_info['name'] == 'Unknown Company' else 'PARTIAL'}")
+        print(f"\n   Please check:")
+        print(f"   1. Are your API keys valid and have credits?")
+        print(f"   2. Is the target website accessible?")
+        print(f"   3. Check error messages above for details\n")
 
     # Return comprehensive results dictionary
     return {
@@ -351,7 +384,7 @@ def run_due_diligence(
         'report_path': report_path,
         'visualization_paths': visualization_paths,
         'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        'success': True
+        'success': analysis_success
     }
 
 
