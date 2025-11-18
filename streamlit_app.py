@@ -7,8 +7,6 @@ import os
 import sys
 import streamlit as st
 from pathlib import Path
-import io
-from contextlib import redirect_stdout
 from dotenv import load_dotenv
 
 # Import the main analysis function
@@ -218,31 +216,32 @@ if run_button:
             # Progress tracking
             progress_bar = st.progress(0)
             status_text = st.empty()
-            log_container = st.expander("📋 View Detailed Logs", expanded=False)
 
-            # Capture output
-            log_output = io.StringIO()
+            # Create placeholder for real-time logs
+            log_placeholder = st.empty()
 
             try:
                 # Update progress
                 status_text.text("Step 1/7: Initializing components...")
                 progress_bar.progress(0.05)
 
-                # Run the analysis with captured output
-                with redirect_stdout(log_output):
-                    result = run_due_diligence(
-                        startup_url=startup_url,
-                        max_competitors=max_competitors,
-                        skip_visualizations=skip_viz
-                    )
+                # Show info message
+                with log_placeholder.container():
+                    st.info("🔄 Analysis running... Check Railway logs for real-time progress.")
 
-                # Show logs
-                with log_container:
-                    st.code(log_output.getvalue(), language="text")
+                # Run the analysis WITHOUT capturing output (so logs appear in Railway/terminal)
+                result = run_due_diligence(
+                    startup_url=startup_url,
+                    max_competitors=max_competitors,
+                    skip_visualizations=skip_viz,
+                    parallel_api_key=parallel_key,
+                    gemini_api_key=gemini_key
+                )
 
                 if result and result.get('success'):
                     progress_bar.progress(1.0)
                     status_text.text("✅ Analysis Complete!")
+                    log_placeholder.empty()
 
                     st.success("🎉 Due diligence completed successfully!")
 
@@ -250,14 +249,17 @@ if run_button:
                     st.session_state['analysis_result'] = result
 
                 else:
-                    st.error("❌ Analysis failed. Check the logs for details.")
-                    with log_container:
-                        st.code(log_output.getvalue(), language="text")
+                    st.error("❌ Analysis failed. Check Railway deployment logs for error details.")
+                    if result:
+                        st.json({
+                            'startup_name': result.get('startup_info', {}).get('name', 'Unknown'),
+                            'competitors_found': len(result.get('competitors', [])),
+                            'status': 'partial_failure'
+                        })
 
             except Exception as e:
                 st.error(f"❌ Error during analysis: {str(e)}")
-                with log_container:
-                    st.code(log_output.getvalue(), language="text")
+                st.warning("💡 Check Railway logs for detailed error information.")
 
 # Display Results (if available)
 if 'analysis_result' in st.session_state:
