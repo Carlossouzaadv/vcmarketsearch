@@ -25,8 +25,9 @@ class MarketDiscovery:
         self.parallel_api_key = parallel_api_key
         self.base_url = "https://api.parallel.ai"
         self.headers = {
-            "Authorization": f"Bearer {parallel_api_key}",
-            "Content-Type": "application/json"
+            "x-api-key": parallel_api_key,
+            "Content-Type": "application/json",
+            "parallel-beta": "search-extract-2025-10-10"
         }
 
         # Configure Gemini
