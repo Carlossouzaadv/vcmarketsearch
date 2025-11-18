@@ -54,15 +54,18 @@ class MarketDiscovery:
                 headers=self.headers,
                 json={
                     "urls": [url],
-                    "objective": """Extract comprehensive company information:
-                    - Company name and tagline
-                    - Core product/service offering (be specific about what they actually sell)
-                    - Target market and customer segments (B2B/B2C, company size, industries)
+                    "objective": """Extract comprehensive company information from the website homepage:
+                    - Exact company name (as shown on the website)
+                    - Company tagline or slogan
+                    - Core product/service offering (be very specific about what they actually sell)
+                    - Target market and customer segments (B2B/B2C, company size, industries, geographic region)
                     - Key features, capabilities, and value propositions
                     - Industry category and market positioning
                     - Technology stack or approach (if mentioned)
                     - Pricing model (if available)
-                    - Notable customers or case studies""",
+                    - Notable customers or case studies
+
+                    IMPORTANT: Extract the ACTUAL company name from this specific website, not similar companies.""",
                     "excerpts": True,
                     "full_content": True
                 },
@@ -74,31 +77,47 @@ class MarketDiscovery:
             if not extract_data.get("results"):
                 raise ValueError("No extraction results returned")
 
-            content = extract_data["results"][0].get("content", "")
+            # Try multiple field names for content
+            result = extract_data["results"][0]
+            content = (
+                result.get("content", "") or
+                result.get("extracted_content", "") or
+                result.get("text", "") or
+                str(result.get("excerpts", ""))
+            )
+
+            if not content.strip():
+                raise ValueError("Empty content extracted")
 
         except Exception as e:
             print(f"  ⚠ Warning: Could not extract from {url}: {e}")
-            content = f"Company website: {url}"
+            # Fallback: Try to infer from URL
+            content = f"Company website: {url}\nPlease analyze based on the URL domain name."
 
         # Use Gemini to structure the information
         print("  → Structuring data with Gemini")
 
-        prompt = f"""Extract and structure information from this website content:
+        prompt = f"""Analyze this website content and extract company information.
 
+WEBSITE URL: {url}
+CONTENT:
 {content[:8000]}
 
 Return a JSON object with these fields:
-- name: company name (string)
-- tagline: company tagline or one-line description (string)
-- description: comprehensive 3-4 sentence description of what they do, who they serve, and their value proposition (string)
-- category: specific market category, e.g., "AI-Powered Sales Intelligence", "Cloud Infrastructure Monitoring" (string)
-- target_market: detailed description of target customers (string)
+- name: THE EXACT company name from THIS website (look for logo text, header, title). NOT a similar company! (string)
+- tagline: company tagline or slogan from the website (string)
+- description: comprehensive 3-4 sentence description of what THISCOMPANY does, who they serve, their value proposition (string)
+- category: specific market category, e.g., "AI-Powered Legal Automation", "Cloud Infrastructure Monitoring" (string)
+- target_market: detailed description of target customers including GEOGRAPHIC REGION if mentioned (e.g., "Brazilian law firms", "US startups") (string)
 - key_features: array of 5-8 main features or capabilities (array of strings)
-- keywords: 8-12 highly specific keywords for finding competitors - include product type, technology, industry terms (array of strings)
+- keywords: 8-12 highly specific keywords for finding competitors - include product type, technology, industry terms, COUNTRY/REGION if applicable (array of strings)
 - pricing_model: pricing approach if mentioned, e.g., "Usage-based", "Per-seat SaaS" (string or "Unknown")
 - market_position: their positioning, e.g., "Enterprise-focused", "Developer-first", "SMB-oriented" (string)
 
-Be precise and specific. Focus on actionable details.
+CRITICAL: Extract the company name from THIS specific website ({url}), not from any other source!
+
+If content is insufficient, analyze the domain name: {url.split('//')[1].split('/')[0]}
+
 Respond ONLY with valid JSON, no markdown formatting."""
 
         try:
@@ -148,6 +167,16 @@ Respond ONLY with valid JSON, no markdown formatting."""
         Discover competitors using Parallel AI FindAll API.
         More reliable than search+extract approach.
         """
+        # Detect geographic focus from description
+        is_brazilian = any(term in description.lower() for term in ['brazil', 'brasil', 'brazilian', 'brasileiro'])
+        is_latam = any(term in description.lower() for term in ['latin america', 'latam', 'américa latina'])
+
+        geographic_filter = ""
+        if is_brazilian:
+            geographic_filter = "\n- Geographic focus: BRAZIL (Brazilian companies or companies operating in Brazil)"
+        elif is_latam:
+            geographic_filter = "\n- Geographic focus: Latin America"
+
         # Step 1: Create natural language query for FindAll
         findall_query = f"""Find companies that are direct competitors in the {category} space.
 
@@ -157,7 +186,7 @@ Exclude: {company_name}
 Requirements:
 - Companies must offer {category} products or services
 - Must be active, real companies (not concepts or ideas)
-- Must have a public website
+- Must have a public website{geographic_filter}
 - Include company name, website URL, and brief description
 
 Find approximately {max_competitors} companies."""
