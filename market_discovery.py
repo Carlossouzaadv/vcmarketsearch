@@ -9,6 +9,7 @@ import time
 import requests
 import google.generativeai as genai
 from typing import Dict, List, Optional
+from urllib.parse import urlparse
 
 
 class MarketDiscovery:
@@ -34,6 +35,82 @@ class MarketDiscovery:
         genai.configure(api_key=gemini_api_key)
         self.gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
 
+    def _extract_with_jina_reader(self, url: str) -> str:
+        """
+        Fallback extraction using Jina AI Reader API.
+        Free service that converts any URL to clean, LLM-friendly text.
+
+        Args:
+            url: Website URL to extract
+
+        Returns:
+            Extracted text content
+        """
+        try:
+            # Jina Reader API: prepend r.jina.ai/ to any URL
+            jina_url = f"https://r.jina.ai/{url}"
+            print(f"  → Trying Jina AI Reader fallback...")
+
+            response = requests.get(
+                jina_url,
+                headers={
+                    "Accept": "text/plain",
+                    "X-Timeout": "30"
+                },
+                timeout=45
+            )
+            response.raise_for_status()
+
+            content = response.text.strip()
+            if len(content) > 100:  # Reasonable minimum
+                print(f"  ✓ Jina Reader extracted {len(content)} characters")
+                return content
+            else:
+                print(f"  ⚠ Jina Reader returned insufficient content")
+                return ""
+
+        except Exception as e:
+            print(f"  ⚠ Jina Reader failed: {e}")
+            return ""
+
+    def _extract_with_direct_fetch(self, url: str) -> str:
+        """
+        Direct HTTP fetch fallback.
+        Simple GET request to extract basic text.
+
+        Args:
+            url: Website URL to extract
+
+        Returns:
+            Raw HTML or text content
+        """
+        try:
+            print(f"  → Trying direct HTTP fetch fallback...")
+
+            response = requests.get(
+                url,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (compatible; VCMarketResearch/1.0; +http://vcresearch.bot)",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    "Accept-Language": "en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7"
+                },
+                timeout=30,
+                allow_redirects=True
+            )
+            response.raise_for_status()
+
+            content = response.text.strip()
+            if len(content) > 100:
+                print(f"  ✓ Direct fetch got {len(content)} characters")
+                return content
+            else:
+                print(f"  ⚠ Direct fetch returned insufficient content")
+                return ""
+
+        except Exception as e:
+            print(f"  ⚠ Direct fetch failed: {e}")
+            return ""
+
     def analyze_startup(self, url: str, name: Optional[str] = None) -> Dict:
         """
         Analyze target startup to understand their business.
@@ -47,8 +124,13 @@ class MarketDiscovery:
         """
         print(f"  → Extracting information from {url}")
 
-        # Use Parallel AI Extract to get website content
+        # Try extraction with multiple fallback methods
+        content = ""
+        extraction_method = "None"
+
+        # Method 1: Parallel AI Extract (primary)
         try:
+            print(f"  → Method 1: Parallel AI Extract...")
             response = requests.post(
                 f"{self.base_url}/v1beta/extract",
                 headers=self.headers,
@@ -85,34 +167,59 @@ class MarketDiscovery:
                 print(f"  → No results in response!")
             print(f"  → Full response (first 2000 chars):\n{json.dumps(extract_data, indent=2)[:2000]}\n")
 
-            if not extract_data.get("results"):
-                raise ValueError("No extraction results returned")
+            if extract_data.get("results"):
+                # Try multiple field names for content
+                result = extract_data["results"][0]
+                content = (
+                    result.get("content", "") or
+                    result.get("extracted_content", "") or
+                    result.get("text", "") or
+                    result.get("data", "") or
+                    str(result.get("excerpts", ""))
+                )
 
-            # Try multiple field names for content
-            result = extract_data["results"][0]
-            content = (
-                result.get("content", "") or
-                result.get("extracted_content", "") or
-                result.get("text", "") or
-                result.get("data", "") or
-                str(result.get("excerpts", ""))
-            )
+                # DEBUG: Print content details
+                print(f"  🔍 DEBUG: Extracted Content:")
+                print(f"  → Content length: {len(content)} characters")
+                print(f"  → Content preview (first 500 chars):")
+                print(f"     {content[:500]}")
+                print(f"  → Content preview (last 300 chars):")
+                print(f"     ...{content[-300:]}\n")
 
-            # DEBUG: Print content details
-            print(f"  🔍 DEBUG: Extracted Content:")
-            print(f"  → Content length: {len(content)} characters")
-            print(f"  → Content preview (first 500 chars):")
-            print(f"     {content[:500]}")
-            print(f"  → Content preview (last 300 chars):")
-            print(f"     ...{content[-300:]}\n")
-
-            if not content.strip():
-                raise ValueError("Empty content extracted")
+                # Check if content is sufficient (at least 200 chars of actual content)
+                if len(content.strip()) >= 200:
+                    extraction_method = "Parallel AI Extract"
+                    print(f"  ✓ Parallel AI Extract successful")
+                else:
+                    print(f"  ⚠ Parallel AI content too short ({len(content)} chars), trying fallbacks...")
+                    content = ""
 
         except Exception as e:
-            print(f"  ⚠ Warning: Could not extract from {url}: {e}")
-            # Fallback: Try to infer from URL
-            content = f"Company website: {url}\nPlease analyze based on the URL domain name."
+            print(f"  ⚠ Parallel AI Extract failed: {e}")
+
+        # Method 2: Jina AI Reader (fallback 1)
+        if not content:
+            content = self._extract_with_jina_reader(url)
+            if content:
+                extraction_method = "Jina AI Reader"
+
+        # Method 3: Direct HTTP fetch (fallback 2)
+        if not content:
+            content = self._extract_with_direct_fetch(url)
+            if content:
+                extraction_method = "Direct HTTP Fetch"
+
+        # Method 4: URL-based inference (last resort)
+        if not content:
+            print(f"  ⚠ All extraction methods failed, using URL-based inference")
+            domain = urlparse(url).netloc.replace("www.", "")
+            content = f"""Company website: {url}
+Domain: {domain}
+
+This is a minimal fallback. Please make educated guesses based on the domain name."""
+            extraction_method = "URL Inference (Fallback)"
+
+        print(f"\n  ℹ Final extraction method used: {extraction_method}\n")
 
         # Use Gemini to structure the information
         print("  → Structuring data with Gemini")
