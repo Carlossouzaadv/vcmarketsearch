@@ -1,6 +1,9 @@
 # Dockerfile for Capital Scout Streamlit Dashboard
-# Version: 2.0 - Force rebuild with updated dependencies
+# Version: 2.1 - Force complete rebuild without cache
 FROM python:3.10-slim
+
+# Cache buster - change this to force rebuild
+ARG CACHE_BUST=1763495221
 
 # Set working directory
 WORKDIR /app
@@ -16,8 +19,10 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 
 # Install Python dependencies (no cache to force fresh install)
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+RUN echo "Cache bust: ${CACHE_BUST}" && \
+    pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip list | grep google-generativeai
 
 # Copy entrypoint script
 COPY entrypoint.sh /app/entrypoint.sh
