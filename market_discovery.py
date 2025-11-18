@@ -137,6 +137,133 @@ Respond ONLY with valid JSON, no markdown formatting."""
                 "market_position": "Unknown"
             }
 
+    def _discover_with_findall(
+        self,
+        category: str,
+        description: str,
+        company_name: str,
+        max_competitors: int
+    ) -> List[Dict]:
+        """
+        Discover competitors using Parallel AI FindAll API.
+        More reliable than search+extract approach.
+        """
+        # Step 1: Create natural language query for FindAll
+        findall_query = f"""Find companies that are direct competitors in the {category} space.
+
+Target company description: {description}
+Exclude: {company_name}
+
+Requirements:
+- Companies must offer {category} products or services
+- Must be active, real companies (not concepts or ideas)
+- Must have a public website
+- Include company name, website URL, and brief description
+
+Find approximately {max_competitors} companies."""
+
+        print(f"  → Ingesting FindAll query...")
+
+        # Step 2: Ingest query to create structured spec
+        try:
+            ingest_response = requests.post(
+                f"{self.base_url}/v1beta/findall/ingest",
+                headers=self.headers,
+                json={"query": findall_query},
+                timeout=30
+            )
+            ingest_response.raise_for_status()
+            ingest_data = ingest_response.json()
+            spec_id = ingest_data.get("spec_id") or ingest_data.get("id")
+
+            if not spec_id:
+                print(f"  ⚠ No spec_id returned from FindAll ingest")
+                return []
+
+            print(f"  → Running FindAll search (spec: {spec_id[:8]}...)")
+
+        except Exception as e:
+            print(f"  ⚠ FindAll ingest failed: {e}")
+            return []
+
+        # Step 3: Execute the FindAll run
+        try:
+            run_response = requests.post(
+                f"{self.base_url}/v1beta/findall/runs",
+                headers=self.headers,
+                json={
+                    "spec_id": spec_id,
+                    "max_results": max_competitors * 2  # Get more than needed for filtering
+                },
+                timeout=120  # FindAll can take longer
+            )
+            run_response.raise_for_status()
+            run_data = run_response.json()
+
+            results = run_data.get("results", []) or run_data.get("entities", [])
+
+            if not results:
+                print(f"  ⚠ FindAll returned no results")
+                return []
+
+            print(f"  ✓ FindAll discovered {len(results)} potential competitors")
+
+        except Exception as e:
+            print(f"  ⚠ FindAll run failed: {e}")
+            return []
+
+        # Step 4: Parse and structure FindAll results
+        competitors = []
+        seen_names = set()
+
+        for entity in results[:max_competitors * 2]:
+            # Extract fields (FindAll format may vary)
+            name = (
+                entity.get("name") or
+                entity.get("company_name") or
+                entity.get("entity_name") or
+                ""
+            ).strip()
+
+            website = (
+                entity.get("website") or
+                entity.get("url") or
+                entity.get("homepage") or
+                ""
+            ).strip()
+
+            desc = (
+                entity.get("description") or
+                entity.get("summary") or
+                entity.get("about") or
+                ""
+            ).strip()
+
+            # Skip if missing essential data or duplicate
+            if not name or not website:
+                continue
+
+            if name.lower() in seen_names or name.lower() == company_name.lower():
+                continue
+
+            # Clean website URL
+            if not website.startswith("http"):
+                website = f"https://{website}"
+
+            competitors.append({
+                "name": name,
+                "website": website,
+                "description": desc or f"Company in {category} space"
+            })
+
+            seen_names.add(name.lower())
+
+            if len(competitors) >= max_competitors:
+                break
+
+        print(f"  ✓ Filtered to {len(competitors)} validated competitors")
+        return competitors
+
     def discover_competitors(
         self,
         category: str,
@@ -146,7 +273,7 @@ Respond ONLY with valid JSON, no markdown formatting."""
         max_competitors: int = 10
     ) -> List[Dict]:
         """
-        Discover competitors in the market.
+        Discover competitors in the market using Parallel AI FindAll API.
 
         Args:
             category: Market category
@@ -158,7 +285,21 @@ Respond ONLY with valid JSON, no markdown formatting."""
         Returns:
             List of competitor dictionaries with name, website, description
         """
-        print(f"  → Searching for {category} competitors")
+        print(f"  → Using FindAll API to discover {category} competitors")
+
+        # Try FindAll API first (better for this use case)
+        try:
+            competitors = self._discover_with_findall(
+                category, description, company_name, max_competitors
+            )
+            if competitors:
+                return competitors
+            print("  ℹ FindAll returned no results, falling back to Search+Extract method")
+        except Exception as e:
+            print(f"  ℹ FindAll API not available ({e}), using Search+Extract method")
+
+        # Fallback to original search+extract method
+        print(f"  → Searching for {category} competitors with Search API")
 
         # Step 1: Search for relevant articles using Parallel AI
         search_objective = f"""Find authoritative articles and blog posts about {category} products, platforms, and solutions.
