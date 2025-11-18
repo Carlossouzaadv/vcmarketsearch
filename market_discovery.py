@@ -338,6 +338,12 @@ Find approximately {max_competitors} companies."""
 
         print(f"  → Ingesting FindAll query...")
 
+        # DEBUG: Print query being sent
+        print(f"\n  🔍 DEBUG: FindAll Ingest Request:")
+        print(f"  → Endpoint: {self.base_url}/v1beta/findall/ingest")
+        print(f"  → Headers: {self.headers}")
+        print(f"  → Query (first 500 chars): {findall_query[:500]}...\n")
+
         # Step 2: Ingest query to create structured spec
         try:
             ingest_response = requests.post(
@@ -346,22 +352,48 @@ Find approximately {max_competitors} companies."""
                 json={"query": findall_query},
                 timeout=30
             )
+
+            # DEBUG: Print response details
+            print(f"  🔍 DEBUG: FindAll Ingest Response:")
+            print(f"  → Status Code: {ingest_response.status_code}")
+            print(f"  → Response Headers: {dict(ingest_response.headers)}")
+
             ingest_response.raise_for_status()
             ingest_data = ingest_response.json()
+
+            # DEBUG: Print full response
+            print(f"  → Response JSON:")
+            print(f"     {json.dumps(ingest_data, indent=2)[:2000]}")
+            print(f"  → Response keys: {list(ingest_data.keys())}")
+
             spec_id = ingest_data.get("spec_id") or ingest_data.get("id")
 
             if not spec_id:
                 print(f"  ⚠ No spec_id returned from FindAll ingest")
+                print(f"  → Available fields in response: {list(ingest_data.keys())}")
+                print(f"  → Full response: {json.dumps(ingest_data, indent=2)}\n")
                 return []
 
-            print(f"  → Running FindAll search (spec: {spec_id[:8]}...)")
+            print(f"  ✓ Got spec_id: {spec_id}")
+            print(f"  → Running FindAll search (spec: {spec_id[:8]}...)\n")
 
+        except requests.exceptions.HTTPError as e:
+            print(f"  ⚠ FindAll ingest HTTP error: {e}")
+            print(f"  → Response status: {ingest_response.status_code}")
+            print(f"  → Response body: {ingest_response.text[:1000]}")
+            return []
         except Exception as e:
             print(f"  ⚠ FindAll ingest failed: {e}")
+            print(f"  → Error type: {type(e).__name__}")
             return []
 
         # Step 3: Execute the FindAll run
         try:
+            print(f"  🔍 DEBUG: FindAll Run Request:")
+            print(f"  → Endpoint: {self.base_url}/v1beta/findall/runs")
+            print(f"  → spec_id: {spec_id}")
+            print(f"  → max_results: {max_competitors * 2}\n")
+
             run_response = requests.post(
                 f"{self.base_url}/v1beta/findall/runs",
                 headers=self.headers,
@@ -371,19 +403,33 @@ Find approximately {max_competitors} companies."""
                 },
                 timeout=120  # FindAll can take longer
             )
+
+            print(f"  🔍 DEBUG: FindAll Run Response:")
+            print(f"  → Status Code: {run_response.status_code}")
+
             run_response.raise_for_status()
             run_data = run_response.json()
+
+            print(f"  → Response keys: {list(run_data.keys())}")
+            print(f"  → Response (first 1500 chars): {json.dumps(run_data, indent=2)[:1500]}...\n")
 
             results = run_data.get("results", []) or run_data.get("entities", [])
 
             if not results:
                 print(f"  ⚠ FindAll returned no results")
+                print(f"  → Available fields: {list(run_data.keys())}")
                 return []
 
             print(f"  ✓ FindAll discovered {len(results)} potential competitors")
 
+        except requests.exceptions.HTTPError as e:
+            print(f"  ⚠ FindAll run HTTP error: {e}")
+            print(f"  → Response status: {run_response.status_code}")
+            print(f"  → Response body: {run_response.text[:1000]}")
+            return []
         except Exception as e:
             print(f"  ⚠ FindAll run failed: {e}")
+            print(f"  → Error type: {type(e).__name__}")
             return []
 
         # Step 4: Parse and structure FindAll results
@@ -475,8 +521,18 @@ Find approximately {max_competitors} companies."""
         # Fallback to original search+extract method
         print(f"  → Searching for {category} competitors with Search API")
 
+        # Detect geographic focus from description
+        is_brazilian = any(term in description.lower() for term in ['brazil', 'brasil', 'brazilian', 'brasileiro'])
+        is_latam = any(term in description.lower() for term in ['latin america', 'latam', 'américa latina'])
+
+        geographic_context = ""
+        if is_brazilian:
+            geographic_context = " Focus on companies operating in BRAZIL or targeting the Brazilian market."
+        elif is_latam:
+            geographic_context = " Focus on companies operating in Latin America."
+
         # Step 1: Search for relevant articles using Parallel AI
-        search_objective = f"""Find authoritative articles and blog posts about {category} products, platforms, and solutions.
+        search_objective = f"""Find authoritative articles and blog posts about {category} products, platforms, and solutions.{geographic_context}
 
 Priority sources:
 - Product comparison and review articles
@@ -575,6 +631,13 @@ Exclude:
         # Step 3: Use Gemini to parse and filter competitors
         print("  → Filtering direct competitors with Gemini")
 
+        # Add geographic filtering to Gemini prompt
+        geographic_filter_rule = ""
+        if is_brazilian:
+            geographic_filter_rule = "\n7. GEOGRAPHIC PRIORITY: Strongly prefer Brazilian companies or companies explicitly targeting the Brazilian market. If mentioning geographic focus, prioritize Brazil > Latin America > Global companies with Brazil presence."
+        elif is_latam:
+            geographic_filter_rule = "\n7. GEOGRAPHIC PRIORITY: Strongly prefer Latin American companies or companies targeting the LatAm market."
+
         prompt = f"""Extract ONLY direct competitors to this company: {description}
 
 ARTICLE CONTENT:
@@ -591,7 +654,7 @@ STRICT FILTERING RULES:
 3. Exclude tangentially related companies, infrastructure providers, or general tech platforms
 4. Exclude the target company itself: {company_name}
 5. Limit to the {max_competitors} most directly competitive companies
-6. Only include companies that are clearly described as product/platform providers
+6. Only include companies that are clearly described as product/platform providers{geographic_filter_rule}
 
 Respond ONLY with a valid JSON array, no markdown formatting."""
 
