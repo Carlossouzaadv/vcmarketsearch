@@ -3,153 +3,36 @@ Funding Analysis Module
 Analyzes funding data, investment rounds, and investor landscape.
 """
 
-import random
 import requests
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Optional
 import google.generativeai as genai
 
 
 class FundingClient:
     """
-    Simulated funding data client.
-    In production, replace with actual API integration (Crunchbase, PitchBook, etc.)
+    Funding data client using Parallel AI Search and Gemini for real data extraction.
     """
 
-    # Simulated database of funding data
-    FUNDING_DATABASE = {
-        "seed": {
-            "range": (500_000, 3_000_000),
-            "typical_investors": [
-                "Y Combinator", "Techstars", "500 Startups", "Seedcamp",
-                "Angel List", "First Round Capital", "SV Angel"
-            ]
-        },
-        "series_a": {
-            "range": (3_000_000, 15_000_000),
-            "typical_investors": [
-                "Sequoia Capital", "Andreessen Horowitz", "Accel Partners",
-                "Benchmark", "Greylock Partners", "NEA", "Lightspeed Venture Partners"
-            ]
-        },
-        "series_b": {
-            "range": (10_000_000, 50_000_000),
-            "typical_investors": [
-                "Tiger Global", "Insight Partners", "General Catalyst",
-                "Index Ventures", "Bessemer Venture Partners", "Redpoint Ventures"
-            ]
-        },
-        "series_c": {
-            "range": (30_000_000, 100_000_000),
-            "typical_investors": [
-                "Softbank Vision Fund", "Coatue Management", "T. Rowe Price",
-                "Fidelity Investments", "GGV Capital", "DST Global"
-            ]
-        },
-        "series_d_plus": {
-            "range": (75_000_000, 500_000_000),
-            "typical_investors": [
-                "Softbank Vision Fund", "Tiger Global", "DST Global",
-                "Fidelity Investments", "T. Rowe Price", "BlackRock"
-            ]
-        }
-    }
-
-    ROUND_TYPES = ["Seed", "Series A", "Series B", "Series C", "Series D+"]
-
-    def __init__(self, parallel_api_key: str = None, gemini_api_key: str = None, use_simulation: bool = False):
+    def __init__(self, parallel_api_key: str = None, gemini_api_key: str = None):
         """
         Initialize funding client.
 
         Args:
             parallel_api_key: Parallel AI API key for real data search
             gemini_api_key: Google Gemini API key for parsing search results
-            use_simulation: If True, use simulated data. If False, use real API.
         """
-        self.use_simulation = use_simulation
         self.parallel_api_key = parallel_api_key
         self.gemini_api_key = gemini_api_key
 
-        if not use_simulation and gemini_api_key:
+        if gemini_api_key:
             genai.configure(api_key=gemini_api_key)
             self.gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
 
         self.parallel_headers = {
             "x-api-key": parallel_api_key if parallel_api_key else "",
             "Content-Type": "application/json"
-        }
-
-    def _simulate_funding_data(self, company_name: str) -> Optional[Dict]:
-        """
-        Simulate funding data for a company.
-
-        Args:
-            company_name: Name of the company
-
-        Returns:
-            Dictionary with simulated funding data or None
-        """
-        # Randomly decide if company has funding data (80% chance)
-        if random.random() > 0.80:
-            return None
-
-        # Randomly select funding stage
-        round_type = random.choice(self.ROUND_TYPES)
-        round_key = round_type.lower().replace(" ", "_").replace("+", "_plus")
-
-        # Get funding data for this stage
-        funding_info = self.FUNDING_DATABASE.get(round_key, self.FUNDING_DATABASE["seed"])
-
-        # Generate random funding amount within range
-        min_amount, max_amount = funding_info["range"]
-        total_funding = random.randint(min_amount, max_amount)
-
-        # Select 2-4 random investors
-        num_investors = random.randint(2, 4)
-        investors = random.sample(funding_info["typical_investors"], num_investors)
-
-        # Generate random date within last 2 years
-        days_ago = random.randint(30, 730)
-        funding_date = datetime.now() - timedelta(days=days_ago)
-
-        # Calculate previous rounds (cumulative funding)
-        previous_rounds = []
-        total_raised = total_funding
-
-        if round_type != "Seed":
-            # Add previous rounds
-            round_index = self.ROUND_TYPES.index(round_type)
-            for i in range(round_index):
-                prev_round_type = self.ROUND_TYPES[i]
-                prev_round_key = prev_round_type.lower().replace(" ", "_").replace("+", "_plus")
-                prev_info = self.FUNDING_DATABASE[prev_round_key]
-                prev_amount = random.randint(prev_info["range"][0], prev_info["range"][1])
-                prev_investors = random.sample(prev_info["typical_investors"], random.randint(2, 3))
-
-                # Date should be older
-                prev_days_ago = days_ago + random.randint(180, 365) * (round_index - i)
-                prev_date = datetime.now() - timedelta(days=prev_days_ago)
-
-                previous_rounds.append({
-                    "round_type": prev_round_type,
-                    "amount": prev_amount,
-                    "investors": prev_investors,
-                    "date": prev_date.strftime("%Y-%m-%d")
-                })
-
-                total_raised += prev_amount
-
-        return {
-            "company_name": company_name,
-            "latest_round": round_type,
-            "latest_round_amount": total_funding,
-            "total_funding": total_raised,
-            "key_investors": investors,
-            "date_of_latest_round": funding_date.strftime("%Y-%m-%d"),
-            "previous_rounds": previous_rounds,
-            "number_of_rounds": len(previous_rounds) + 1,
-            "is_funded": True
         }
 
     def _fetch_real_funding_data(self, company_name: str) -> Optional[Dict]:
@@ -284,7 +167,7 @@ Respond ONLY with valid JSON (object or null), no markdown."""
 
     def get_funding_data(self, company_name: str) -> Optional[Dict]:
         """
-        Get funding data for a company.
+        Get funding data for a company using real API search.
 
         Args:
             company_name: Name of the company
@@ -292,33 +175,23 @@ Respond ONLY with valid JSON (object or null), no markdown."""
         Returns:
             Dictionary with funding data or None if not found
         """
-        try:
-            if self.use_simulation:
-                return self._simulate_funding_data(company_name)
-            else:
-                return self._fetch_real_funding_data(company_name)
-
-        except Exception as e:
-            print(f"      ⚠ Error fetching funding data for {company_name}: {e}")
-            return None
+        return self._fetch_real_funding_data(company_name)
 
 
 class FundingAnalyzer:
     """Analyzes funding data and generates insights."""
 
-    def __init__(self, parallel_api_key: str, gemini_api_key: str, use_simulation: bool = False):
+    def __init__(self, parallel_api_key: str, gemini_api_key: str):
         """
         Initialize Funding Analyzer.
 
         Args:
             parallel_api_key: Parallel AI API key for searching funding data
             gemini_api_key: Google Gemini API key for parsing data
-            use_simulation: Whether to use simulated data (default: False)
         """
         self.client = FundingClient(
             parallel_api_key=parallel_api_key,
-            gemini_api_key=gemini_api_key,
-            use_simulation=use_simulation
+            gemini_api_key=gemini_api_key
         )
 
         # Configure Gemini for analysis

@@ -153,6 +153,35 @@ with st.sidebar:
         help="Number of competitors to analyze"
     )
 
+    # Geographic Focus
+    geographic_focus = st.selectbox(
+        "🌍 Geographic Focus",
+        options=[
+            "Global",
+            "Brazil",
+            "United States",
+            "United Kingdom",
+            "Germany",
+            "France",
+            "Spain",
+            "Italy",
+            "Canada",
+            "Australia",
+            "China",
+            "India",
+            "Japan",
+            "South Korea",
+            "Singapore",
+            "Latin America",
+            "Europe",
+            "Asia-Pacific",
+            "Middle East",
+            "Africa"
+        ],
+        index=0,  # Default to Global
+        help="Select the geographic market to focus on when discovering competitors"
+    )
+
     skip_viz = st.checkbox(
         "Skip Visualizations",
         value=False,
@@ -235,7 +264,8 @@ if run_button:
                     max_competitors=max_competitors,
                     skip_visualizations=skip_viz,
                     parallel_api_key=parallel_key,
-                    gemini_api_key=gemini_key
+                    gemini_api_key=gemini_key,
+                    geographic_focus=geographic_focus
                 )
 
                 if result and result.get('success'):

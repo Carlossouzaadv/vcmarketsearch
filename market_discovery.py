@@ -306,21 +306,17 @@ Respond ONLY with valid JSON, no markdown formatting."""
         category: str,
         description: str,
         company_name: str,
-        max_competitors: int
+        max_competitors: int,
+        geographic_focus: str = "Global"
     ) -> List[Dict]:
         """
         Discover competitors using Parallel AI FindAll API.
         More reliable than search+extract approach.
         """
-        # Detect geographic focus from description
-        is_brazilian = any(term in description.lower() for term in ['brazil', 'brasil', 'brazilian', 'brasileiro'])
-        is_latam = any(term in description.lower() for term in ['latin america', 'latam', 'américa latina'])
-
+        # Build geographic filter based on user selection
         geographic_filter = ""
-        if is_brazilian:
-            geographic_filter = "\n- Geographic focus: BRAZIL (Brazilian companies or companies operating in Brazil)"
-        elif is_latam:
-            geographic_filter = "\n- Geographic focus: Latin America"
+        if geographic_focus != "Global":
+            geographic_filter = f"\n- Geographic focus: {geographic_focus.upper()} (companies based in or primarily targeting {geographic_focus})"
 
         # Step 1: Create natural language query for FindAll
         findall_query = f"""Find companies that are direct competitors in the {category} space.
@@ -490,7 +486,8 @@ Find approximately {max_competitors} companies."""
         description: str,
         keywords: List[str],
         company_name: str = "",
-        max_competitors: int = 10
+        max_competitors: int = 10,
+        geographic_focus: str = "Global"
     ) -> List[Dict]:
         """
         Discover competitors in the market using Parallel AI FindAll API.
@@ -501,16 +498,17 @@ Find approximately {max_competitors} companies."""
             keywords: Keywords for search
             company_name: Name of target company to exclude
             max_competitors: Maximum number of competitors to find
+            geographic_focus: Geographic market focus (e.g., "Brazil", "United States", "Global")
 
         Returns:
             List of competitor dictionaries with name, website, description
         """
-        print(f"  → Using FindAll API to discover {category} competitors")
+        print(f"  → Using FindAll API to discover {category} competitors ({geographic_focus} focus)")
 
         # Try FindAll API first (better for this use case)
         try:
             competitors = self._discover_with_findall(
-                category, description, company_name, max_competitors
+                category, description, company_name, max_competitors, geographic_focus
             )
             if competitors:
                 return competitors
@@ -519,17 +517,12 @@ Find approximately {max_competitors} companies."""
             print(f"  ℹ FindAll API not available ({e}), using Search+Extract method")
 
         # Fallback to original search+extract method
-        print(f"  → Searching for {category} competitors with Search API")
+        print(f"  → Searching for {category} competitors with Search API ({geographic_focus} focus)")
 
-        # Detect geographic focus from description
-        is_brazilian = any(term in description.lower() for term in ['brazil', 'brasil', 'brazilian', 'brasileiro'])
-        is_latam = any(term in description.lower() for term in ['latin america', 'latam', 'américa latina'])
-
+        # Build geographic context based on user selection
         geographic_context = ""
-        if is_brazilian:
-            geographic_context = " Focus on companies operating in BRAZIL or targeting the Brazilian market."
-        elif is_latam:
-            geographic_context = " Focus on companies operating in Latin America."
+        if geographic_focus != "Global":
+            geographic_context = f" Focus on companies operating in {geographic_focus} or primarily targeting the {geographic_focus} market."
 
         # Step 1: Search for relevant articles using Parallel AI
         search_objective = f"""Find authoritative articles and blog posts about {category} products, platforms, and solutions.{geographic_context}
@@ -633,10 +626,8 @@ Exclude:
 
         # Add geographic filtering to Gemini prompt
         geographic_filter_rule = ""
-        if is_brazilian:
-            geographic_filter_rule = "\n7. GEOGRAPHIC PRIORITY: Strongly prefer Brazilian companies or companies explicitly targeting the Brazilian market. If mentioning geographic focus, prioritize Brazil > Latin America > Global companies with Brazil presence."
-        elif is_latam:
-            geographic_filter_rule = "\n7. GEOGRAPHIC PRIORITY: Strongly prefer Latin American companies or companies targeting the LatAm market."
+        if geographic_focus != "Global":
+            geographic_filter_rule = f"\n7. GEOGRAPHIC PRIORITY: Strongly prefer companies based in {geographic_focus} or companies explicitly targeting the {geographic_focus} market."
 
         prompt = f"""Extract ONLY direct competitors to this company: {description}
 

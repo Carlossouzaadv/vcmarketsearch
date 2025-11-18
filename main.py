@@ -76,7 +76,8 @@ def run_due_diligence(
     max_competitors: int = 10,
     skip_visualizations: bool = False,
     parallel_api_key: str = None,
-    gemini_api_key: str = None
+    gemini_api_key: str = None,
+    geographic_focus: str = "Global"
 ):
     """
     Run complete market research analysis (Due Diligence).
@@ -91,6 +92,7 @@ def run_due_diligence(
         skip_visualizations: Skip creating visualizations
         parallel_api_key: Parallel AI API key (optional, uses env if not provided)
         gemini_api_key: Gemini API key (optional, uses env if not provided)
+        geographic_focus: Geographic market focus (e.g., "Brazil", "United States", "Global")
 
     Returns:
         Dictionary with analysis results or None if failed:
@@ -117,7 +119,7 @@ def run_due_diligence(
     print("🔧 Initializing analysis components...")
     discovery = MarketDiscovery(parallel_key, gemini_key)
     analyzer = CompetitorAnalyzer(parallel_key, gemini_key)
-    funding_analyzer = FundingAnalyzer(parallel_key, gemini_key, use_simulation=False)
+    funding_analyzer = FundingAnalyzer(parallel_key, gemini_key)
     reporter = ReportGenerator(gemini_key)
     visualizer = MarketVisualizer() if not skip_visualizations else None
 
@@ -162,7 +164,8 @@ def run_due_diligence(
             description=startup_info['description'],
             keywords=startup_info.get('keywords', []),
             company_name=startup_info['name'],
-            max_competitors=max_competitors
+            max_competitors=max_competitors,
+            geographic_focus=geographic_focus
         )
 
         if not competitors:
