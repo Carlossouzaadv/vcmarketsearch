@@ -529,21 +529,9 @@ Find approximately {max_competitors} companies."""
         Returns:
             List of competitor dictionaries with name, website, description
         """
-        print(f"  → Using FindAll API to discover {category} competitors ({geographic_focus} focus)")
-
-        # Try FindAll API first (better for this use case)
-        try:
-            competitors = self._discover_with_findall(
-                category, description, company_name, max_competitors, geographic_focus
-            )
-            if competitors:
-                return competitors
-            print("  ℹ FindAll returned no results, falling back to Search+Extract method")
-        except Exception as e:
-            print(f"  ℹ FindAll API not available ({e}), using Search+Extract method")
-
-        # Fallback to original search+extract method
-        print(f"  → Searching for {category} competitors with Search API ({geographic_focus} focus)")
+        # NOTE: FindAll API currently returns only schema without spec_id
+        # Using Search+Extract which works reliably
+        print(f"  → Discovering {category} competitors with Search+Extract API ({geographic_focus} focus)")
 
         # Build geographic context based on user selection
         geographic_context = ""
