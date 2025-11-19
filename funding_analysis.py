@@ -76,13 +76,13 @@ class FundingClient:
             domain_for_search = domain.replace('www.', '') if company_website else ''
 
             # Build comprehensive search queries including accelerators/incubators
+            # CRITICAL: API accepts MAX 5 queries only!
             search_queries = [
                 f"{company_name} {domain_for_search} funding round investment",
                 f"{company_name} {domain_for_search} raised capital seed series",
                 f"{company_name} {domain_for_search} investimento rodada captação",
                 f"{company_name} {domain_for_search} aceleradora incubadora programa",
-                f'"{company_name}" {domain_for_search} venture capital investor',
-                f"{company_name} startup funding Brazil Brasil"
+                f'"{company_name}" {domain_for_search} venture capital investor'
             ]
 
             # Prepare request payload - ensure all fields are valid
