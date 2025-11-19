@@ -74,21 +74,24 @@ class FundingClient:
             # Build search queries - include domain for disambiguation and Portuguese terms
             # Use domain WITHOUT site: operator (more flexible for API)
             domain_for_search = domain.replace('www.', '') if company_website else ''
+
+            # Build comprehensive search queries including accelerators/incubators
             search_queries = [
                 f"{company_name} {domain_for_search} funding round investment",
-                f"{company_name} {domain_for_search} raised capital",
+                f"{company_name} {domain_for_search} raised capital seed series",
                 f"{company_name} {domain_for_search} investimento rodada",
-                f"{company_name} {domain_for_search} aceleradora captação Brazil Brasil",
-                f'"{company_name}" {domain_for_search} venture capital'
+                f"{company_name} {domain_for_search} aceleradora incubadora Brazil",
+                f"{company_name} WOW aceleradora",  # Specific for known accelerators
+                f'"{company_name}" {domain_for_search} venture capital investor'
             ]
 
             # Prepare request payload - ensure all fields are valid
             search_payload = {
-                "objective": f"Find recent news, press releases, and announcements about {company_name}'s funding rounds, investment amounts, and investors.",
+                "objective": f"Find news, press releases, announcements, and company profiles mentioning {company_name}'s funding rounds, investment amounts, investors, accelerators, or incubators.",
                 "search_queries": search_queries,
-                "max_results": 5,
+                "max_results": 8,  # Increased to find more sources
                 "excerpts": {
-                    "max_chars_per_result": 5000
+                    "max_chars_per_result": 15000  # Increased to capture more content
                 }
             }
 
@@ -160,7 +163,7 @@ class FundingClient:
 
             extract_payload = {
                 "urls": article_urls,
-                "objective": f"Extract funding information for {company_name}: funding round names (Seed, Series A/B/C), amounts raised, investor names, and dates."
+                "objective": f"Extract ALL funding and investment information for {company_name}: funding rounds (Seed, Series A/B/C), amounts raised, investor names, accelerator programs, incubator participation, grants, and dates. Include any mention of financial backing or support programs."
             }
 
             extract_response = requests.post(
@@ -203,28 +206,38 @@ class FundingClient:
             print(f"      → Total combined content: {len(combined_content)} characters\n")
 
             # Use Gemini to parse and structure the funding data
-            prompt = f"""Extract funding information for the company: {company_name}
+            prompt = f"""Extract ALL funding and investment information for the company: {company_name}
 
 CONTENT FROM NEWS ARTICLES:
-{combined_content[:8000]}
+{combined_content[:15000]}
 
-CRITICAL: Only extract information if you find EXPLICIT, VERIFIABLE mentions of funding rounds for {company_name}.
-If the content does NOT clearly mention {company_name}'s funding, return null.
+INSTRUCTIONS:
+1. Extract information if you find ANY mentions of:
+   - Funding rounds (Seed, Pre-Seed, Series A/B/C, etc.)
+   - Investment amounts raised
+   - Investor names (VCs, angels, corporate investors)
+   - ACCELERATOR programs (e.g., "acelerada pela WOW", "participated in Y Combinator")
+   - INCUBATOR participation
+   - Grants or government funding
+   - Any financial backing or support programs
 
-If funding data is found, return a JSON object:
+2. CRITICAL: Only extract if the content CLEARLY mentions {company_name}.
+   If content is about a DIFFERENT company with similar name, return null.
+
+3. Return a JSON object:
 {{
-  "latest_round": "Round name (e.g., Seed, Series A, Series B)" or null,
-  "latest_amount": amount as integer or null,
+  "latest_round": "Round name (e.g., Seed, Accelerator, Series A) or program name" or null,
+  "latest_amount": amount as integer (use 0 if amount not disclosed) or null,
   "total_funding": total amount raised as integer or null,
-  "investors": ["Investor 1", "Investor 2"] or [],
+  "investors": ["Investor 1", "Accelerator Name", "Incubator Name"] or [],
   "funding_date": "YYYY-MM-DD" or null,
   "rounds": [
-    {{"round": "Seed", "amount": 1000000, "date": "2020-01-15", "investors": ["Angel Investor"]}},
-    {{"round": "Series A", "amount": 5000000, "date": "2021-06-20", "investors": ["VC Firm"]}}
+    {{"round": "Accelerator/WOW", "amount": 0, "date": "2023-01-15", "investors": ["WOW Aceleradora"]}},
+    {{"round": "Seed", "amount": 1000000, "date": "2024-06-20", "investors": ["VC Firm"]}}
   ] or []
 }}
 
-If NO reliable funding data is found for {company_name}, respond with: null{self.lang_instruction}
+4. If NO funding/investment/accelerator data is found for {company_name}, respond with: null{self.lang_instruction}
 
 Respond ONLY with valid JSON (object or null), no markdown."""
 
