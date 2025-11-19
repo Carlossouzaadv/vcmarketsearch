@@ -79,10 +79,10 @@ class FundingClient:
             search_queries = [
                 f"{company_name} {domain_for_search} funding round investment",
                 f"{company_name} {domain_for_search} raised capital seed series",
-                f"{company_name} {domain_for_search} investimento rodada",
-                f"{company_name} {domain_for_search} aceleradora incubadora Brazil",
-                f"{company_name} WOW aceleradora",  # Specific for known accelerators
-                f'"{company_name}" {domain_for_search} venture capital investor'
+                f"{company_name} {domain_for_search} investimento rodada captação",
+                f"{company_name} {domain_for_search} aceleradora incubadora programa",
+                f'"{company_name}" {domain_for_search} venture capital investor',
+                f"{company_name} startup funding Brazil Brasil"
             ]
 
             # Prepare request payload - ensure all fields are valid
