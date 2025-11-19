@@ -571,13 +571,14 @@ Find approximately {max_competitors} companies."""
         if geographic_focus == "Brazil":
             # Use common Brazilian terms and English equivalents
             # Extract core concept from category (first 2 words max)
+            # CRITICAL: Include "software", "plataforma", "tecnologia" to find TECH companies not consultants
             category_short = ' '.join(category.split()[:2])
             enhanced_keywords = [
-                f"taxtech Brasil startups",
-                f"software tributário brasileiro",
-                f"automação fiscal Brazil",
-                f"{category_short} empresas brasileiras",
-                f"legal tech tributário"
+                f"software taxtech Brasil startups",
+                f"plataforma tributária SaaS brasileiro",
+                f"tecnologia automação fiscal Brazil",
+                f"{category_short} software empresas brasileiras",
+                f"legal tech plataforma tributário"
             ]
         elif geographic_focus == "United States":
             category_short = ' '.join(category.split()[:2])
@@ -725,11 +726,11 @@ Exclude:
         geographic_filter_rule = ""
         if geographic_focus != "Global":
             if geographic_focus == "Brazil":
-                geographic_filter_rule = f"\n7. GEOGRAPHIC REQUIREMENT: CRITICAL - ONLY include companies that are HEADQUARTERED in BRAZIL or EXCLUSIVELY serve Brazilian customers. REJECT all US, European, and other international companies. Look for .br domains, Portuguese language websites, Brazilian cities (São Paulo, Rio, etc)."
+                geographic_filter_rule = f"\n8. GEOGRAPHIC REQUIREMENT: CRITICAL - ONLY include companies that are HEADQUARTERED in BRAZIL or EXCLUSIVELY serve Brazilian customers. REJECT all US, European, and other international companies. Look for .br domains, Portuguese language websites, Brazilian cities (São Paulo, Rio, etc)."
             elif geographic_focus == "United States":
-                geographic_filter_rule = f"\n7. GEOGRAPHIC REQUIREMENT: CRITICAL - ONLY include companies HEADQUARTERED in the UNITED STATES. REJECT all non-US companies."
+                geographic_filter_rule = f"\n8. GEOGRAPHIC REQUIREMENT: CRITICAL - ONLY include companies HEADQUARTERED in the UNITED STATES. REJECT all non-US companies."
             else:
-                geographic_filter_rule = f"\n7. GEOGRAPHIC REQUIREMENT: CRITICAL - ONLY include companies based in {geographic_focus} or exclusively targeting the {geographic_focus} market. REJECT companies from other regions."
+                geographic_filter_rule = f"\n8. GEOGRAPHIC REQUIREMENT: CRITICAL - ONLY include companies based in {geographic_focus} or exclusively targeting the {geographic_focus} market. REJECT companies from other regions."
 
         prompt = f"""Extract ONLY direct competitors to this company: {description}
 
@@ -747,7 +748,8 @@ STRICT FILTERING RULES:
 3. Exclude tangentially related companies, infrastructure providers, or general tech platforms
 4. Exclude the target company itself: {company_name}
 5. Limit to the {max_competitors} most directly competitive companies
-6. Only include companies that are clearly described as product/platform providers{geographic_filter_rule}{self.lang_instruction}
+6. Only include companies that are clearly described as product/platform providers
+7. CRITICAL EXCLUSION: REJECT all of the following - accounting firms, tax consultants, accounting consultancies, BPO services, traditional accounting offices, tax preparation services, bookkeeping services. ONLY include SOFTWARE/TECHNOLOGY companies that sell platforms, SaaS products, or software solutions.{geographic_filter_rule}{self.lang_instruction}
 
 Respond ONLY with a valid JSON array, no markdown formatting."""
 

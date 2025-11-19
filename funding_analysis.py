@@ -44,12 +44,13 @@ class FundingClient:
         if language == "pt":
             self.lang_instruction = "\n\nIMPORTANTE: Escreva TODO o conteúdo em PORTUGUÊS BRASILEIRO. Use terminologia de negócios em português."
 
-    def _fetch_real_funding_data(self, company_name: str) -> Optional[Dict]:
+    def _fetch_real_funding_data(self, company_name: str, company_website: Optional[str] = None) -> Optional[Dict]:
         """
         Fetch real funding data using Parallel AI Search + Gemini.
 
         Args:
             company_name: Name of the company
+            company_website: Optional company website URL for disambiguation
 
         Returns:
             Dictionary with funding data or None if no reliable data found
@@ -62,13 +63,21 @@ class FundingClient:
             # Search for funding announcements and data
             print(f"      → Searching for funding data: {company_name}")
 
-            # Build search queries - include Portuguese terms for Brazilian companies
+            # Extract domain from website for better search disambiguation
+            domain_term = ""
+            if company_website:
+                # Extract domain: https://evollux.com.br -> evollux.com.br
+                domain = company_website.replace("https://", "").replace("http://", "").split("/")[0]
+                domain_term = f" site:{domain}"
+                print(f"      → Using domain for disambiguation: {domain}")
+
+            # Build search queries - include domain for disambiguation and Portuguese terms
             search_queries = [
-                f"{company_name} funding round investment",
-                f"{company_name} raised capital",
-                f"{company_name} investimento rodada",
-                f"{company_name} aceleradora captação",
-                f"{company_name} venture capital seed"
+                f"{company_name}{domain_term} funding round investment",
+                f"{company_name}{domain_term} raised capital",
+                f"{company_name}{domain_term} investimento rodada",
+                f"{company_name}{domain_term} aceleradora captação",
+                f"{company_name} {domain.replace('www.', '') if company_website else ''} venture capital seed"
             ]
 
             # Prepare request payload - ensure all fields are valid
@@ -223,17 +232,18 @@ Respond ONLY with valid JSON (object or null), no markdown."""
             print(f"      ⚠ Error fetching real funding data for {company_name}: {e}")
             return None
 
-    def get_funding_data(self, company_name: str) -> Optional[Dict]:
+    def get_funding_data(self, company_name: str, company_website: Optional[str] = None) -> Optional[Dict]:
         """
         Get funding data for a company using real API search.
 
         Args:
             company_name: Name of the company
+            company_website: Optional company website URL for disambiguation
 
         Returns:
             Dictionary with funding data or None if not found
         """
-        return self._fetch_real_funding_data(company_name)
+        return self._fetch_real_funding_data(company_name, company_website)
 
 
 class FundingAnalyzer:
@@ -264,12 +274,13 @@ class FundingAnalyzer:
         if language == "pt":
             self.lang_instruction = "\n\nIMPORTANTE: Escreva TODO o conteúdo em PORTUGUÊS BRASILEIRO. Use terminologia de negócios em português."
 
-    def analyze_funding(self, company_name: str) -> Dict:
+    def analyze_funding(self, company_name: str, company_website: Optional[str] = None) -> Dict:
         """
         Analyze funding data for a company.
 
         Args:
             company_name: Name of the company
+            company_website: Optional company website URL for disambiguation
 
         Returns:
             Dictionary with analyzed funding data
@@ -277,7 +288,7 @@ class FundingAnalyzer:
         print(f"      → Fetching funding data for {company_name}")
 
         # Get raw funding data
-        raw_data = self.client.get_funding_data(company_name)
+        raw_data = self.client.get_funding_data(company_name, company_website)
 
         if not raw_data:
             print(f"      ℹ No funding data found for {company_name}")

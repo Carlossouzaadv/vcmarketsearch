@@ -226,7 +226,10 @@ def run_due_diligence(
     print(f"\n  [Target] {startup_info['name']}")
 
     try:
-        target_funding = funding_analyzer.analyze_funding(startup_info['name'])
+        target_funding = funding_analyzer.analyze_funding(
+            startup_info['name'],
+            startup_info.get('url')  # Pass website for disambiguation
+        )
         startup_info['funding_data'] = target_funding
 
         if target_funding.get('is_funded'):
@@ -245,7 +248,10 @@ def run_due_diligence(
         print(f"    [{i}/{len(competitor_details)}] {comp['name']}")
 
         try:
-            comp_funding = funding_analyzer.analyze_funding(comp['name'])
+            comp_funding = funding_analyzer.analyze_funding(
+                comp['name'],
+                comp.get('website')  # Pass website for disambiguation
+            )
             comp['funding_data'] = comp_funding
 
             if comp_funding.get('is_funded'):
