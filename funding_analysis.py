@@ -32,9 +32,10 @@ class FundingClient:
 
         self.parallel_headers = {
             "x-api-key": parallel_api_key if parallel_api_key else "",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "parallel-beta": "search-extract-2025-10-10"
         }
-        # Note: Do NOT add parallel-beta header here as it can cause 422 errors
+        # Beta header is REQUIRED for Search and Extract APIs per official docs
 
     def _fetch_real_funding_data(self, company_name: str) -> Optional[Dict]:
         """
@@ -64,7 +65,10 @@ class FundingClient:
             search_payload = {
                 "objective": f"Find recent news, press releases, and announcements about {company_name}'s funding rounds, investment amounts, and investors.",
                 "search_queries": search_queries,
-                "max_results": 5
+                "max_results": 5,
+                "excerpts": {
+                    "max_chars_per_result": 5000
+                }
             }
 
             print(f"      🔍 DEBUG: Funding Search Request:")

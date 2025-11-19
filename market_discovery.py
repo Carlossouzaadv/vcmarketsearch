@@ -27,9 +27,10 @@ class MarketDiscovery:
         self.base_url = "https://api.parallel.ai"
         self.headers = {
             "x-api-key": parallel_api_key,
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "parallel-beta": "search-extract-2025-10-10"
         }
-        # Separate headers for FindAll API (no beta header needed)
+        # FindAll uses separate endpoint and doesn't need beta header
         self.findall_headers = {
             "x-api-key": parallel_api_key,
             "Content-Type": "application/json"
@@ -566,7 +567,9 @@ EXCLUDE: General industry news, opinion pieces, job postings, generic overviews 
                     "objective": search_objective,
                     "search_queries": keywords[:5],  # Limit queries
                     "max_results": 5,
-                    "mode": "one-shot"
+                    "excerpts": {
+                        "max_chars_per_result": 5000
+                    }
                 },
                 timeout=90
             )
@@ -721,7 +724,9 @@ Respond ONLY with a valid JSON array, no markdown formatting."""
                     json={
                         "search_queries": [search_query],
                         "max_results": 3,
-                        "mode": "agentic"
+                        "excerpts": {
+                            "max_chars_per_result": 1000
+                        }
                     },
                     timeout=30
                 )

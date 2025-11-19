@@ -24,9 +24,10 @@ class CompetitorAnalyzer:
         self.base_url = "https://api.parallel.ai"
         self.headers = {
             "x-api-key": parallel_api_key,
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "parallel-beta": "search-extract-2025-10-10"
         }
-        # Note: Do NOT add parallel-beta header as it causes 422 errors
+        # Beta header is REQUIRED for Search and Extract APIs per official docs
 
         # Configure Gemini
         genai.configure(api_key=gemini_api_key)
