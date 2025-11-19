@@ -62,10 +62,13 @@ class FundingClient:
             # Search for funding announcements and data
             print(f"      → Searching for funding data: {company_name}")
 
-            # Build search queries - limit to avoid 422 errors
+            # Build search queries - include Portuguese terms for Brazilian companies
             search_queries = [
                 f"{company_name} funding round investment",
-                f"{company_name} raised capital"
+                f"{company_name} raised capital",
+                f"{company_name} investimento rodada",
+                f"{company_name} aceleradora captação",
+                f"{company_name} venture capital seed"
             ]
 
             # Prepare request payload - ensure all fields are valid

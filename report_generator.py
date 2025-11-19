@@ -54,7 +54,15 @@ class ReportGenerator:
                 "market_patterns": "Market Patterns",
                 "table_stakes": "Table Stakes (What Everyone Does)",
                 "common_gaps": "Common Gaps (Shared Weaknesses)",
-                "market_positioning_clusters": "Market Positioning Clusters"
+                "market_positioning_clusters": "Market Positioning Clusters",
+                "funding_analysis": "Funding Analysis & Investor Landscape",
+                "funding_summary_table": "Funding Summary Table",
+                "company": "Company",
+                "latest_round": "Latest Round",
+                "total_funding": "Total Funding",
+                "key_investors": "Key Investors",
+                "target": "Target",
+                "not_funded": "Not funded"
             },
             "pt": {
                 "generated": "Gerado em",
@@ -78,7 +86,15 @@ class ReportGenerator:
                 "market_patterns": "Padrões de Mercado",
                 "table_stakes": "Requisitos Básicos (O Que Todos Fazem)",
                 "common_gaps": "Lacunas Comuns (Fraquezas Compartilhadas)",
-                "market_positioning_clusters": "Clusters de Posicionamento"
+                "market_positioning_clusters": "Clusters de Posicionamento",
+                "funding_analysis": "Análise de Financiamento e Panorama de Investidores",
+                "funding_summary_table": "Tabela Resumo de Financiamento",
+                "company": "Empresa",
+                "latest_round": "Última Rodada",
+                "total_funding": "Financiamento Total",
+                "key_investors": "Principais Investidores",
+                "target": "Alvo",
+                "not_funded": "Sem financiamento"
             }
         }
 
@@ -359,7 +375,7 @@ The funding landscape indicates {'high' if total_market > 100_000_000 else 'mode
         # Funding Analysis Section (if available)
         if funding_landscape:
             print("  → Generating funding analysis section")
-            report += "## Funding Analysis & Investor Landscape\n\n"
+            report += f"## {self.t['funding_analysis']}\n\n"
 
             funding_section = self.generate_funding_section(
                 startup=startup,
@@ -370,17 +386,17 @@ The funding landscape indicates {'high' if total_market > 100_000_000 else 'mode
             report += funding_section + "\n\n"
 
             # Add raw funding data table
-            report += "### Funding Summary Table\n\n"
-            report += "| Company | Latest Round | Total Funding | Key Investors |\n"
+            report += f"### {self.t['funding_summary_table']}\n\n"
+            report += f"| {self.t['company']} | {self.t['latest_round']} | {self.t['total_funding']} | {self.t['key_investors']} |\n"
             report += "|---------|--------------|---------------|---------------|\n"
 
             # Add target
             target_funding = startup.get('funding_data', {})
             if target_funding.get('is_funded'):
                 investors_str = ", ".join(target_funding.get('key_investors', [])[:3])
-                report += f"| **{startup.get('name')}** (Target) | {target_funding.get('latest_round', 'N/A')} | ${target_funding.get('total_funding', 0):,} | {investors_str} |\n"
+                report += f"| **{startup.get('name')}** ({self.t['target']}) | {target_funding.get('latest_round', 'N/A')} | ${target_funding.get('total_funding', 0):,} | {investors_str} |\n"
             else:
-                report += f"| **{startup.get('name')}** (Target) | Not funded | $0 | - |\n"
+                report += f"| **{startup.get('name')}** ({self.t['target']}) | {self.t['not_funded']} | $0 | - |\n"
 
             # Add competitors
             for comp in competitors:

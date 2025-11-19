@@ -565,36 +565,39 @@ Find approximately {max_competitors} companies."""
             search_objective = f"Find articles comparing top {category} companies and platforms, including product reviews and market analyses."
 
         # Build better search queries based on geographic focus
-        # Keep queries simple and clean to avoid 422 errors
+        # Keep queries SHORT and use COMMON terms to find relevant articles
         enhanced_keywords = []
 
         if geographic_focus == "Brazil":
-            # Brazilian-specific search terms
+            # Use common Brazilian terms and English equivalents
+            # Extract core concept from category (first 2 words max)
+            category_short = ' '.join(category.split()[:2])
             enhanced_keywords = [
-                f"best {category} companies Brazil",
-                f"{category} startups Brasil",
-                f"Brazilian {category} solutions"
+                f"taxtech Brasil startups",
+                f"software tributário brasileiro",
+                f"automação fiscal Brazil",
+                f"{category_short} empresas brasileiras",
+                f"legal tech tributário"
             ]
         elif geographic_focus == "United States":
+            category_short = ' '.join(category.split()[:2])
             enhanced_keywords = [
-                f"top {category} companies USA",
-                f"{category} startups United States",
-                f"American {category} platforms"
+                f"{category_short} companies USA",
+                f"tax automation software America",
+                f"legal tech United States"
             ]
         elif geographic_focus != "Global":
+            category_short = ' '.join(category.split()[:2])
             enhanced_keywords = [
-                f"{category} companies {geographic_focus}",
-                f"{category} startups {geographic_focus}"
+                f"{category_short} {geographic_focus}",
+                f"legal tech {geographic_focus}"
             ]
         else:
-            # Global search
+            # Global search - use industry standard terms
             enhanced_keywords = [
-                f"top {category} companies",
-                f"{category} startups platforms"
+                f"{' '.join(category.split()[:2])} companies",
+                f"{keywords[0] if keywords else category.split()[0]} platforms"
             ]
-
-        # Add original keywords as backup
-        enhanced_keywords.extend(keywords[:2])
 
         try:
             print(f"\n  🔍 DEBUG: Competitor Search Request:")
