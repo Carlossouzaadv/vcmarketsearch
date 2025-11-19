@@ -104,14 +104,21 @@ class FundingClient:
             search_response.raise_for_status()
             search_results = search_response.json()
 
+            # DETAILED LOGGING: Show what URLs were found
+            print(f"\n      📊 FUNDING SEARCH RESULTS FOR {company_name}:")
             if not search_results.get("results"):
                 print(f"      ℹ No funding news found for {company_name}")
                 return None
 
+            print(f"      → Found {len(search_results['results'])} articles:")
+            for idx, r in enumerate(search_results["results"][:5], 1):
+                print(f"         {idx}. {r.get('url', 'N/A')}")
+                print(f"            Title: {r.get('title', 'N/A')[:100]}")
+
             # Extract funding info from search results
             article_urls = [r["url"] for r in search_results["results"][:3]]
 
-            print(f"      → Extracting from {len(article_urls)} articles")
+            print(f"\n      → Extracting from {len(article_urls)} articles")
 
             extract_payload = {
                 "urls": article_urls,
@@ -138,7 +145,8 @@ class FundingClient:
 
             # Combine extracted content
             combined_content = ""
-            for result in extract_data.get("results", []):
+            print(f"      📄 EXTRACTED CONTENT:")
+            for idx, result in enumerate(extract_data.get("results", []), 1):
                 content = (
                     result.get("content", "") or
                     result.get("extracted_content", "") or
@@ -146,10 +154,15 @@ class FundingClient:
                 )
                 if content:
                     combined_content += content + "\n\n"
+                    print(f"         Article {idx}: {len(content)} chars - Preview: {content[:200]}...")
+                else:
+                    print(f"         Article {idx}: No content extracted")
 
             if not combined_content.strip():
                 print(f"      ℹ No funding content extracted for {company_name}")
                 return None
+
+            print(f"      → Total combined content: {len(combined_content)} characters\n")
 
             # Use Gemini to parse and structure the funding data
             prompt = f"""Extract funding information for the company: {company_name}

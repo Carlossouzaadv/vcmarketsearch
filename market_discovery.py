@@ -634,6 +634,14 @@ Find approximately {max_competitors} companies."""
             search_response.raise_for_status()
             search_results = search_response.json()
 
+            # DETAILED LOGGING: Show what URLs were found
+            print(f"\n  📊 COMPETITOR SEARCH RESULTS:")
+            results_list = search_results.get("results", [])
+            print(f"  → Found {len(results_list)} articles:")
+            for idx, r in enumerate(results_list[:5], 1):
+                print(f"     {idx}. {r.get('url', 'N/A')}")
+                print(f"        Title: {r.get('title', 'N/A')[:100]}")
+
         except Exception as e:
             print(f"  ⚠ Warning: Search failed: {e}")
             return []
@@ -644,7 +652,7 @@ Find approximately {max_competitors} companies."""
             print("  ⚠ No articles found")
             return []
 
-        print(f"  → Found {len(article_urls)} relevant articles")
+        print(f"\n  → Extracting from {len(article_urls)} articles")
 
         # Step 2: Extract company mentions from articles
         print("  → Extracting competitor names from articles")
@@ -687,6 +695,7 @@ Exclude:
 
         # Combine all extraction results
         combined_content = ""
+        print(f"\n  📄 EXTRACTED CONTENT FROM ARTICLES:")
         for idx, result in enumerate(extract_data.get("results", [])):
             # Try different possible field names
             content = (
@@ -698,12 +707,16 @@ Exclude:
             )
             if content:
                 combined_content += content + "\n\n"
-                print(f"    ✓ Extracted content from result {idx + 1}")
+                print(f"     Article {idx + 1}: {len(content)} chars - Preview: {content[:200]}...")
+            else:
+                print(f"     Article {idx + 1}: No content extracted")
 
         if not combined_content.strip():
             print("  ⚠ No content extracted from articles")
             print(f"  → Debug: API returned keys: {list(extract_data.get('results', [{}])[0].keys()) if extract_data.get('results') else 'no results'}")
             return []
+
+        print(f"  → Total content for Gemini: {len(combined_content)} characters\n")
 
         # Step 3: Use Gemini to parse and filter competitors
         print("  → Filtering direct competitors with Gemini")
@@ -753,12 +766,19 @@ Respond ONLY with a valid JSON array, no markdown formatting."""
 
             company_list = json.loads(response_text)
 
+            # DETAILED LOGGING: Show what Gemini identified
+            print(f"\n  🤖 GEMINI IDENTIFIED {len(company_list)} POTENTIAL COMPETITORS:")
+            for idx, comp in enumerate(company_list, 1):
+                print(f"     {idx}. {comp.get('name', 'N/A')}")
+                print(f"        Description: {comp.get('description', 'N/A')[:100]}...")
+                print(f"        Likely domain: {comp.get('likely_domain', 'N/A')}")
+
         except Exception as e:
             print(f"  ⚠ Warning: Could not parse competitors: {e}")
             return []
 
         # Step 4: Verify each competitor has a real website
-        print(f"  → Verifying websites for {len(company_list)} potential competitors")
+        print(f"\n  → Verifying websites for {len(company_list)} potential competitors")
 
         competitors = []
         seen_domains = set()
