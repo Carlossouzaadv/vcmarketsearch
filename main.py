@@ -132,6 +132,11 @@ def run_due_diligence(
     try:
         startup_info = discovery.analyze_startup(startup_url, startup_name)
 
+        # CRITICAL: Ensure we preserve the ORIGINAL URL passed by user
+        # (Gemini might extract different URLs from website content)
+        startup_info['url'] = startup_url
+        startup_info['original_url'] = startup_url
+
         # Check if analysis was successful
         if (startup_info['name'] == "Unknown Company" or
             startup_info['category'] == "Unknown" or

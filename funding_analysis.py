@@ -72,12 +72,14 @@ class FundingClient:
                 print(f"      → Using domain for disambiguation: {domain}")
 
             # Build search queries - include domain for disambiguation and Portuguese terms
+            # Use domain WITHOUT site: operator (more flexible for API)
+            domain_for_search = domain.replace('www.', '') if company_website else ''
             search_queries = [
-                f"{company_name}{domain_term} funding round investment",
-                f"{company_name}{domain_term} raised capital",
-                f"{company_name}{domain_term} investimento rodada",
-                f"{company_name}{domain_term} aceleradora captação",
-                f"{company_name} {domain.replace('www.', '') if company_website else ''} venture capital seed"
+                f"{company_name} {domain_for_search} funding round investment",
+                f"{company_name} {domain_for_search} raised capital",
+                f"{company_name} {domain_for_search} investimento rodada",
+                f"{company_name} {domain_for_search} aceleradora captação Brazil Brasil",
+                f'"{company_name}" {domain_for_search} venture capital'
             ]
 
             # Prepare request payload - ensure all fields are valid
@@ -124,8 +126,35 @@ class FundingClient:
                 print(f"         {idx}. {r.get('url', 'N/A')}")
                 print(f"            Title: {r.get('title', 'N/A')[:100]}")
 
-            # Extract funding info from search results
-            article_urls = [r["url"] for r in search_results["results"][:3]]
+            # Filter results to prioritize those mentioning the correct domain
+            filtered_results = []
+            other_results = []
+
+            for r in search_results["results"]:
+                url = r.get("url", "").lower()
+                title = r.get("title", "").lower()
+                snippet = r.get("snippet", "").lower()
+
+                # Check if result mentions the correct domain (without www)
+                if company_website:
+                    domain_check = domain_for_search.lower()
+                    if domain_check in url or domain_check in title or domain_check in snippet:
+                        filtered_results.append(r)
+                    else:
+                        other_results.append(r)
+                else:
+                    filtered_results.append(r)
+
+            # Prioritize domain-matching results, but include others as fallback
+            prioritized_results = filtered_results + other_results
+
+            if filtered_results:
+                print(f"      → {len(filtered_results)} articles mention domain '{domain_for_search}'")
+            else:
+                print(f"      ⚠ No articles explicitly mention domain '{domain_for_search}' - using all results")
+
+            # Extract funding info from top prioritized results
+            article_urls = [r["url"] for r in prioritized_results[:3]]
 
             print(f"\n      → Extracting from {len(article_urls)} articles")
 
@@ -311,13 +340,13 @@ class FundingAnalyzer:
             "company_name": company_name,
             "has_funding_data": True,
             "is_funded": raw_data.get("is_funded", False),
-            "latest_round": raw_data["latest_round"],
-            "latest_round_amount": raw_data["latest_round_amount"],
-            "total_funding": raw_data["total_funding"],
-            "key_investors": raw_data["key_investors"],
-            "date_of_latest_round": raw_data["date_of_latest_round"],
-            "previous_rounds": raw_data.get("previous_rounds", []),
-            "number_of_rounds": raw_data.get("number_of_rounds", 1),
+            "latest_round": raw_data.get("latest_round", "Unknown"),
+            "latest_round_amount": raw_data.get("latest_amount", 0),  # Gemini returns 'latest_amount'
+            "total_funding": raw_data.get("total_funding", 0),
+            "key_investors": raw_data.get("investors", []),  # Gemini returns 'investors'
+            "date_of_latest_round": raw_data.get("funding_date", "Unknown"),  # Gemini returns 'funding_date'
+            "previous_rounds": raw_data.get("rounds", []),
+            "number_of_rounds": len(raw_data.get("rounds", [])) if raw_data.get("rounds") else 1,
             "funding_stage": funding_stage,
             "capital_efficiency": capital_efficiency
         }

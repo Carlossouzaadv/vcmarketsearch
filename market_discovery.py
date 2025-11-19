@@ -732,6 +732,10 @@ Exclude:
             else:
                 geographic_filter_rule = f"\n8. GEOGRAPHIC REQUIREMENT: CRITICAL - ONLY include companies based in {geographic_focus} or exclusively targeting the {geographic_focus} market. REJECT companies from other regions."
 
+        # Extract core product category (ignore specific target market)
+        # E.g., "Automação Fiscal para Consultorias" -> "Automação Fiscal"
+        core_category = category.split(' para ')[0].split(' Para ')[0]
+
         prompt = f"""Extract ONLY direct competitors to this company: {description}
 
 ARTICLE CONTENT:
@@ -743,8 +747,10 @@ Return a JSON array of competitors. Each competitor should have:
 - likely_domain: likely website domain, e.g., "example.com" (string, make educated guess based on company name)
 
 STRICT FILTERING RULES:
-1. Only include companies with THE SAME product category as: {category}
-2. They must be DIRECT competitors (same target market and solution type)
+1. PRODUCT MATCH: Only include companies offering the SAME TYPE of product/solution as: {core_category}
+   - Focus on the CORE PRODUCT TYPE, not specific target markets
+   - Example: if looking for "Tax Automation" software, include ALL tax automation platforms regardless of whether they target SMBs, enterprises, or specific industries
+2. DIRECT COMPETITION: They must solve similar business problems with similar technology approaches
 3. Exclude tangentially related companies, infrastructure providers, or general tech platforms
 4. Exclude the target company itself: {company_name}
 5. Limit to the {max_competitors} most directly competitive companies
