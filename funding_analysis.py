@@ -350,10 +350,17 @@ class FundingAnalyzer:
         funding_stage = self._determine_funding_stage(raw_data)
         capital_efficiency = self._assess_capital_efficiency(raw_data)
 
+        # Determine if funded based on presence of funding data
+        # Gemini doesn't return "is_funded" field, so we calculate it
+        is_funded = bool(
+            raw_data.get("latest_round") and
+            raw_data.get("latest_round") not in ["Unknown", "null", None]
+        )
+
         return {
             "company_name": company_name,
             "has_funding_data": True,
-            "is_funded": raw_data.get("is_funded", False),
+            "is_funded": is_funded,  # Calculated, not from Gemini
             "latest_round": raw_data.get("latest_round", "Unknown"),
             "latest_round_amount": raw_data.get("latest_amount", 0),  # Gemini returns 'latest_amount'
             "total_funding": raw_data.get("total_funding", 0),
