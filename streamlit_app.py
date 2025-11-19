@@ -256,23 +256,39 @@ if run_button:
             st.markdown("### 🔄 Analysis in Progress...")
             st.markdown("</div>", unsafe_allow_html=True)
 
-            # Progress tracking
+            # Progress tracking with better messaging
             progress_bar = st.progress(0)
             status_text = st.empty()
-
-            # Create placeholder for real-time logs
-            log_placeholder = st.empty()
+            info_text = st.empty()
 
             try:
-                # Update progress
-                status_text.text("Step 1/7: Initializing components...")
-                progress_bar.progress(0.05)
+                # Show what's happening
+                status_messages = {
+                    "en": {
+                        "starting": "🔄 Starting analysis...",
+                        "analyzing": "🔍 Analyzing startup and discovering competitors...",
+                        "ongoing": "⏳ This may take 7-11 minutes for complete analysis",
+                        "complete": "✅ Analysis Complete!",
+                        "success": "🎉 Due diligence completed successfully!",
+                        "error": "❌ Analysis failed. Please check if the URL is correct and try again."
+                    },
+                    "pt": {
+                        "starting": "🔄 Iniciando análise...",
+                        "analyzing": "🔍 Analisando startup e descobrindo concorrentes...",
+                        "ongoing": "⏳ Isso pode levar 7-11 minutos para análise completa",
+                        "complete": "✅ Análise Completa!",
+                        "success": "🎉 Due diligence concluído com sucesso!",
+                        "error": "❌ Análise falhou. Verifique se a URL está correta e tente novamente."
+                    }
+                }
 
-                # Show info message
-                with log_placeholder.container():
-                    st.info("🔄 Analysis running... Check Railway logs for real-time progress.")
+                msg = status_messages[lang_code]
 
-                # Run the analysis WITHOUT capturing output (so logs appear in Railway/terminal)
+                status_text.text(msg["starting"])
+                progress_bar.progress(0.1)
+                info_text.info(f"{msg['analyzing']}\n\n{msg['ongoing']}")
+
+                # Run the analysis
                 result = run_due_diligence(
                     startup_url=startup_url,
                     max_competitors=max_competitors,
@@ -285,16 +301,16 @@ if run_button:
 
                 if result and result.get('success'):
                     progress_bar.progress(1.0)
-                    status_text.text("✅ Analysis Complete!")
-                    log_placeholder.empty()
+                    status_text.text(msg["complete"])
+                    info_text.empty()
 
-                    st.success("🎉 Due diligence completed successfully!")
+                    st.success(msg["success"])
 
                     # Store results in session state
                     st.session_state['analysis_result'] = result
 
                 else:
-                    st.error("❌ Analysis failed. Check Railway deployment logs for error details.")
+                    st.error(msg["error"])
                     if result:
                         st.json({
                             'startup_name': result.get('startup_info', {}).get('name', 'Unknown'),
@@ -303,8 +319,8 @@ if run_button:
                         })
 
             except Exception as e:
-                st.error(f"❌ Error during analysis: {str(e)}")
-                st.warning("💡 Check Railway logs for detailed error information.")
+                error_msg = "❌ Error during analysis" if lang_code == "en" else "❌ Erro durante a análise"
+                st.error(f"{error_msg}: {str(e)}")
 
 # Display Results (if available)
 if 'analysis_result' in st.session_state:

@@ -559,14 +559,26 @@ Priority sources:
 
 EXCLUDE: General industry news, opinion pieces, job postings, generic overviews without specific product mentions."""
 
+        # Build better search queries based on geographic focus
+        enhanced_keywords = list(keywords[:3])  # Start with first 3 keywords
+        if geographic_focus == "Brazil":
+            # Add Brazilian-specific search terms
+            enhanced_keywords.extend([
+                f"{category} Brasil",
+                f"empresas {category.split()[0].lower()} brasileiras",
+                f"startups {category.split()[0].lower()} Brasil"
+            ])
+        elif geographic_focus != "Global":
+            enhanced_keywords.append(f"{category} {geographic_focus}")
+
         try:
             search_response = requests.post(
                 f"{self.base_url}/v1beta/search",
                 headers=self.headers,
                 json={
                     "objective": search_objective,
-                    "search_queries": keywords[:5],  # Limit queries
-                    "max_results": 5,
+                    "search_queries": enhanced_keywords[:7],  # Use enhanced queries
+                    "max_results": 10,  # Increase to find more sources
                     "excerpts": {
                         "max_chars_per_result": 5000
                     }

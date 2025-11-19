@@ -25,10 +25,64 @@ class ReportGenerator:
         self.gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
         self.language = language
 
-        # Language-specific instruction
+        # Language-specific instruction for AI
         self.lang_instruction = ""
         if language == "pt":
             self.lang_instruction = "\n\nIMPORTANTE: Escreva TODO o conteúdo em PORTUGUÊS BRASILEIRO. Use terminologia de negócios em português."
+
+        # Language-specific labels
+        self.labels = {
+            "en": {
+                "generated": "Generated",
+                "category": "Category",
+                "target_market": "Target Market",
+                "executive_summary": "Executive Summary",
+                "target_company_analysis": "Target Company Analysis",
+                "website": "Website",
+                "description": "Description",
+                "market_position": "Market Position",
+                "key_features": "Key Features",
+                "pricing_model": "Pricing Model",
+                "not_specified": "Not specified",
+                "market_overview": "Market Overview",
+                "market_maturity": "Market Maturity",
+                "competitive_intensity": "Competitive Intensity",
+                "market_size": "Market Size",
+                "competitors_analyzed": "Competitors Analyzed",
+                "key_market_trends": "Key Market Trends",
+                "competitive_landscape": "Competitive Landscape",
+                "market_patterns": "Market Patterns",
+                "table_stakes": "Table Stakes (What Everyone Does)",
+                "common_gaps": "Common Gaps (Shared Weaknesses)",
+                "market_positioning_clusters": "Market Positioning Clusters"
+            },
+            "pt": {
+                "generated": "Gerado em",
+                "category": "Categoria",
+                "target_market": "Mercado-Alvo",
+                "executive_summary": "Sumário Executivo",
+                "target_company_analysis": "Análise da Empresa-Alvo",
+                "website": "Website",
+                "description": "Descrição",
+                "market_position": "Posição no Mercado",
+                "key_features": "Principais Características",
+                "pricing_model": "Modelo de Preços",
+                "not_specified": "Não especificado",
+                "market_overview": "Visão Geral do Mercado",
+                "market_maturity": "Maturidade do Mercado",
+                "competitive_intensity": "Intensidade Competitiva",
+                "market_size": "Tamanho do Mercado",
+                "competitors_analyzed": "Concorrentes Analisados",
+                "key_market_trends": "Principais Tendências do Mercado",
+                "competitive_landscape": "Panorama Competitivo",
+                "market_patterns": "Padrões de Mercado",
+                "table_stakes": "Requisitos Básicos (O Que Todos Fazem)",
+                "common_gaps": "Lacunas Comuns (Fraquezas Compartilhadas)",
+                "market_positioning_clusters": "Clusters de Posicionamento"
+            }
+        }
+
+        self.t = self.labels[language]  # Translation helper
 
     def generate_executive_summary(
         self,
@@ -188,51 +242,52 @@ The funding landscape indicates {'high' if total_market > 100_000_000 else 'mode
         )
 
         # Start building the report
-        report = f"""# Market Research Report: {startup.get('name', 'Unknown Company')}
+        report_title = "Relatório de Pesquisa de Mercado" if self.language == "pt" else "Market Research Report"
+        report = f"""# {report_title}: {startup.get('name', 'Unknown Company')}
 
-**Generated:** {datetime.now().strftime('%B %d, %Y')}
-**Category:** {startup.get('category', 'Unknown')}
-**Target Market:** {startup.get('target_market', 'Unknown')}
+**{self.t['generated']}:** {datetime.now().strftime('%B %d, %Y')}
+**{self.t['category']}:** {startup.get('category', 'Unknown')}
+**{self.t['target_market']}:** {startup.get('target_market', 'Unknown')}
 
 ---
 
-## Executive Summary
+## {self.t['executive_summary']}
 
 {exec_summary}
 
 ---
 
-## Target Company Analysis
+## {self.t['target_company_analysis']}
 
 ### {startup.get('name', 'Unknown Company')}
 
-**Website:** {startup.get('url', 'N/A')}
+**{self.t['website']}:** {startup.get('url', 'N/A')}
 
-**Description:**
+**{self.t['description']}:**
 {startup.get('description', 'No description available')}
 
-**Market Position:** {startup.get('market_position', 'N/A')}
+**{self.t['market_position']}:** {startup.get('market_position', 'N/A')}
 
-**Key Features:**
+**{self.t['key_features']}:**
 """
 
         for feature in startup.get('key_features', []):
             report += f"- {feature}\n"
 
-        report += f"\n**Pricing Model:** {startup.get('pricing_model', 'Not specified')}\n\n"
+        report += f"\n**{self.t['pricing_model']}:** {startup.get('pricing_model', self.t['not_specified'])}\n\n"
 
         # Market Overview
         market_overview = market_analysis.get('market_overview', {})
         report += f"""---
 
-## Market Overview
+## {self.t['market_overview']}
 
-**Market Maturity:** {market_overview.get('market_maturity', 'Unknown').title()}
-**Competitive Intensity:** {market_overview.get('competitive_intensity', 'Unknown').title()}
-**Market Size:** {market_overview.get('market_size_indicator', 'Unknown').title()}
-**Competitors Analyzed:** {market_overview.get('total_competitors', len(competitors))}
+**{self.t['market_maturity']}:** {market_overview.get('market_maturity', 'Unknown').title()}
+**{self.t['competitive_intensity']}:** {market_overview.get('competitive_intensity', 'Unknown').title()}
+**{self.t['market_size']}:** {market_overview.get('market_size_indicator', 'Unknown').title()}
+**{self.t['competitors_analyzed']}:** {market_overview.get('total_competitors', len(competitors))}
 
-### Key Market Trends
+### {self.t['key_market_trends']}
 
 """
 
@@ -240,20 +295,20 @@ The funding landscape indicates {'high' if total_market > 100_000_000 else 'mode
             report += f"- {trend}\n"
 
         # Competitive Landscape
-        report += "\n---\n\n## Competitive Landscape\n\n"
+        report += f"\n---\n\n## {self.t['competitive_landscape']}\n\n"
 
         competitor_patterns = market_analysis.get('competitor_patterns', {})
 
-        report += "### Market Patterns\n\n"
-        report += "**Table Stakes (What Everyone Does):**\n"
+        report += f"### {self.t['market_patterns']}\n\n"
+        report += f"**{self.t['table_stakes']}:**\n"
         for strength in competitor_patterns.get('common_strengths', []):
             report += f"- ✓ {strength}\n"
 
-        report += "\n**Common Gaps (Shared Weaknesses):**\n"
+        report += f"\n**{self.t['common_gaps']}:**\n"
         for weakness in competitor_patterns.get('common_weaknesses', []):
             report += f"- ✗ {weakness}\n"
 
-        report += "\n**Market Positioning Clusters:**\n"
+        report += f"\n**{self.t['market_positioning_clusters']}:**\n"
         for cluster in competitor_patterns.get('positioning_clusters', []):
             report += f"- {cluster}\n"
 

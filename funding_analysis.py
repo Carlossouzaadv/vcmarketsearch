@@ -191,7 +191,9 @@ Respond ONLY with valid JSON (object or null), no markdown."""
                 print(f"      ℹ No verified funding data found for {company_name}")
                 return None
 
-            print(f"        Latest: {funding_data.get('latest_round')} - ${funding_data.get('latest_amount', 0):,}")
+            # Ensure latest_amount is not None for formatting
+            latest_amount = funding_data.get('latest_amount') or 0
+            print(f"      ✓ Latest: {funding_data.get('latest_round')} - ${latest_amount:,}")
             return funding_data
 
         except Exception as e:
