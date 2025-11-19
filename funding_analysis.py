@@ -157,7 +157,8 @@ class FundingClient:
                 print(f"      ⚠ No articles explicitly mention domain '{domain_for_search}' - using all results")
 
             # Extract funding info from top prioritized results
-            article_urls = [r["url"] for r in prioritized_results[:3]]
+            # Use more articles (5) to increase chances of finding accelerator mentions
+            article_urls = [r["url"] for r in prioritized_results[:5]]
 
             print(f"\n      → Extracting from {len(article_urls)} articles")
 
