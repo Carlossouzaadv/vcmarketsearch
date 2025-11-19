@@ -571,14 +571,14 @@ Find approximately {max_competitors} companies."""
         if geographic_focus == "Brazil":
             # Use common Brazilian terms and English equivalents
             # Extract core concept from category (first 2 words max)
-            # CRITICAL: Include "software", "plataforma", "tecnologia" to find TECH companies not consultants
+            # FOCUS: Find articles that LIST/COMPARE specific companies
             category_short = ' '.join(category.split()[:2])
             enhanced_keywords = [
-                f"software taxtech Brasil startups",
-                f"plataforma tributária SaaS brasileiro",
-                f"tecnologia automação fiscal Brazil",
-                f"{category_short} software empresas brasileiras",
-                f"legal tech plataforma tributário"
+                f"melhores {category_short} Brasil 2024 2025",
+                f"startups {category_short} brasileiras empresas",
+                f"software tributário fiscal Brasil comparação",
+                f"taxtech Brasil Dootax Omie Conta Azul",
+                f"plataformas automação fiscal brasileiras lista"
             ]
         elif geographic_focus == "United States":
             category_short = ' '.join(category.split()[:2])
