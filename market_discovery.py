@@ -549,42 +549,75 @@ Find approximately {max_competitors} companies."""
                 geographic_search_terms = f" Include '{geographic_focus}' in search terms"
 
         # Step 1: Search for relevant articles using Parallel AI
-        search_objective = f"""Find authoritative articles and blog posts about {category} products, platforms, and solutions.{geographic_context}{geographic_search_terms}
-
-Priority sources:
-- Product comparison and review articles
-- "Best {category} tools" or "Top {category} platforms" lists
-- Industry analysis and market landscape reports
-- Product launch announcements and case studies
-
-EXCLUDE: General industry news, opinion pieces, job postings, generic overviews without specific product mentions."""
+        # Simplified objective to avoid 422 errors
+        if geographic_focus == "Brazil":
+            search_objective = f"Find articles comparing {category} companies and platforms in Brazil, including product reviews and market analyses."
+        elif geographic_focus != "Global":
+            search_objective = f"Find articles comparing {category} companies in {geographic_focus}, including product reviews and analyses."
+        else:
+            search_objective = f"Find articles comparing top {category} companies and platforms, including product reviews and market analyses."
 
         # Build better search queries based on geographic focus
-        enhanced_keywords = list(keywords[:3])  # Start with first 3 keywords
+        # Keep queries simple and clean to avoid 422 errors
+        enhanced_keywords = []
+
         if geographic_focus == "Brazil":
-            # Add Brazilian-specific search terms
-            enhanced_keywords.extend([
-                f"{category} Brasil",
-                f"empresas {category.split()[0].lower()} brasileiras",
-                f"startups {category.split()[0].lower()} Brasil"
-            ])
+            # Brazilian-specific search terms
+            enhanced_keywords = [
+                f"best {category} companies Brazil",
+                f"{category} startups Brasil",
+                f"Brazilian {category} solutions"
+            ]
+        elif geographic_focus == "United States":
+            enhanced_keywords = [
+                f"top {category} companies USA",
+                f"{category} startups United States",
+                f"American {category} platforms"
+            ]
         elif geographic_focus != "Global":
-            enhanced_keywords.append(f"{category} {geographic_focus}")
+            enhanced_keywords = [
+                f"{category} companies {geographic_focus}",
+                f"{category} startups {geographic_focus}"
+            ]
+        else:
+            # Global search
+            enhanced_keywords = [
+                f"top {category} companies",
+                f"{category} startups platforms"
+            ]
+
+        # Add original keywords as backup
+        enhanced_keywords.extend(keywords[:2])
 
         try:
+            print(f"\n  🔍 DEBUG: Competitor Search Request:")
+            print(f"  → Endpoint: {self.base_url}/v1beta/search")
+            print(f"  → Enhanced keywords: {enhanced_keywords[:7]}")
+            print(f"  → Objective (first 300 chars): {search_objective[:300]}...")
+
+            # Limit to 5 queries and 5 results to avoid 422 errors
+            search_payload = {
+                "objective": search_objective,
+                "search_queries": enhanced_keywords[:5],
+                "max_results": 5
+            }
+
+            print(f"  → Payload: {json.dumps(search_payload, indent=2)[:500]}...\n")
+
             search_response = requests.post(
                 f"{self.base_url}/v1beta/search",
                 headers=self.headers,
-                json={
-                    "objective": search_objective,
-                    "search_queries": enhanced_keywords[:7],  # Use enhanced queries
-                    "max_results": 10,  # Increase to find more sources
-                    "excerpts": {
-                        "max_chars_per_result": 5000
-                    }
-                },
+                json=search_payload,
                 timeout=90
             )
+
+            print(f"  → Response status: {search_response.status_code}")
+
+            if search_response.status_code == 422:
+                print(f"  ⚠ 422 Error - Invalid request")
+                print(f"  → Response body: {search_response.text}")
+                return []
+
             search_response.raise_for_status()
             search_results = search_response.json()
 
