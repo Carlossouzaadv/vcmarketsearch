@@ -595,11 +595,14 @@ Find approximately {max_competitors} companies."""
             print(f"  → Enhanced keywords: {enhanced_keywords[:7]}")
             print(f"  → Objective (first 300 chars): {search_objective[:300]}...")
 
-            # Limit to 5 queries and 5 results to avoid 422 errors
+            # Match exact format that works in funding_analysis.py
             search_payload = {
                 "objective": search_objective,
                 "search_queries": enhanced_keywords[:5],
-                "max_results": 5
+                "max_results": 5,
+                "excerpts": {
+                    "max_chars_per_result": 5000
+                }
             }
 
             print(f"  → Payload: {json.dumps(search_payload, indent=2)[:500]}...\n")
