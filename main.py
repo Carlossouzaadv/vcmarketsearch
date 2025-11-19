@@ -119,9 +119,9 @@ def run_due_diligence(
 
     # Initialize components
     print("🔧 Initializing analysis components...")
-    discovery = MarketDiscovery(parallel_key, gemini_key)
-    analyzer = CompetitorAnalyzer(parallel_key, gemini_key)
-    funding_analyzer = FundingAnalyzer(parallel_key, gemini_key)
+    discovery = MarketDiscovery(parallel_key, gemini_key, language=language)
+    analyzer = CompetitorAnalyzer(parallel_key, gemini_key, language=language)
+    funding_analyzer = FundingAnalyzer(parallel_key, gemini_key, language=language)
     reporter = ReportGenerator(gemini_key, language=language)
     visualizer = MarketVisualizer() if not skip_visualizations else None
 

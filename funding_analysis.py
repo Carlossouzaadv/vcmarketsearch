@@ -15,13 +15,14 @@ class FundingClient:
     Funding data client using Parallel AI Search and Gemini for real data extraction.
     """
 
-    def __init__(self, parallel_api_key: str = None, gemini_api_key: str = None):
+    def __init__(self, parallel_api_key: str = None, gemini_api_key: str = None, language: str = "en"):
         """
         Initialize funding client.
 
         Args:
             parallel_api_key: Parallel AI API key for real data search
             gemini_api_key: Google Gemini API key for parsing search results
+            language: Language for analysis ("en" or "pt")
         """
         self.parallel_api_key = parallel_api_key
         self.gemini_api_key = gemini_api_key
@@ -36,6 +37,12 @@ class FundingClient:
             "parallel-beta": "search-extract-2025-10-10"
         }
         # Beta header is REQUIRED for Search and Extract APIs per official docs
+
+        # Language support
+        self.language = language
+        self.lang_instruction = ""
+        if language == "pt":
+            self.lang_instruction = "\n\nIMPORTANTE: Escreva TODO o conteúdo em PORTUGUÊS BRASILEIRO. Use terminologia de negócios em português."
 
     def _fetch_real_funding_data(self, company_name: str) -> Optional[Dict]:
         """
@@ -163,7 +170,7 @@ If funding data is found, return a JSON object:
   ] or []
 }}
 
-If NO reliable funding data is found for {company_name}, respond with: null
+If NO reliable funding data is found for {company_name}, respond with: null{self.lang_instruction}
 
 Respond ONLY with valid JSON (object or null), no markdown."""
 
@@ -216,22 +223,30 @@ Respond ONLY with valid JSON (object or null), no markdown."""
 class FundingAnalyzer:
     """Analyzes funding data and generates insights."""
 
-    def __init__(self, parallel_api_key: str, gemini_api_key: str):
+    def __init__(self, parallel_api_key: str, gemini_api_key: str, language: str = "en"):
         """
         Initialize Funding Analyzer.
 
         Args:
             parallel_api_key: Parallel AI API key for searching funding data
             gemini_api_key: Google Gemini API key for parsing data
+            language: Language for analysis ("en" or "pt")
         """
         self.client = FundingClient(
             parallel_api_key=parallel_api_key,
-            gemini_api_key=gemini_api_key
+            gemini_api_key=gemini_api_key,
+            language=language
         )
 
         # Configure Gemini for analysis
         genai.configure(api_key=gemini_api_key)
         self.gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
+
+        # Language support
+        self.language = language
+        self.lang_instruction = ""
+        if language == "pt":
+            self.lang_instruction = "\n\nIMPORTANTE: Escreva TODO o conteúdo em PORTUGUÊS BRASILEIRO. Use terminologia de negócios em português."
 
     def analyze_funding(self, company_name: str) -> Dict:
         """
@@ -415,7 +430,7 @@ Provide a JSON object with:
 6. strategic_funding_insights:
    - array of 3-5 key insights about funding landscape (strings)
 
-Be specific and actionable. Focus on investment implications.
+Be specific and actionable. Focus on investment implications.{self.lang_instruction}
 Respond ONLY with valid JSON, no markdown formatting."""
 
         try:

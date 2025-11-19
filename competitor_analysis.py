@@ -12,13 +12,14 @@ from typing import Dict, List
 class CompetitorAnalyzer:
     """Analyzes competitors and identifies market whitespace."""
 
-    def __init__(self, parallel_api_key: str, gemini_api_key: str):
+    def __init__(self, parallel_api_key: str, gemini_api_key: str, language: str = "en"):
         """
         Initialize Competitor Analyzer with API keys.
 
         Args:
             parallel_api_key: Parallel AI API key
             gemini_api_key: Google Gemini API key
+            language: Language for analysis ("en" or "pt")
         """
         self.parallel_api_key = parallel_api_key
         self.base_url = "https://api.parallel.ai"
@@ -32,6 +33,12 @@ class CompetitorAnalyzer:
         # Configure Gemini
         genai.configure(api_key=gemini_api_key)
         self.gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
+
+        # Language support
+        self.language = language
+        self.lang_instruction = ""
+        if language == "pt":
+            self.lang_instruction = "\n\nIMPORTANTE: Escreva TODO o conteúdo em PORTUGUÊS BRASILEIRO. Use terminologia de negócios em português."
 
     def analyze_competitor(
         self,
@@ -137,7 +144,7 @@ ANALYSIS GUIDELINES:
 - Identify both strengths AND weaknesses (no company is perfect)
 - Focus on specific, actionable insights
 - Consider: product depth, market fit, pricing, ease of use, scalability, support
-- Look for what they do better than target AND where they fall short
+- Look for what they do better than target AND where they fall short{self.lang_instruction}
 
 Respond ONLY with valid JSON, no markdown formatting."""
 
@@ -265,7 +272,7 @@ ANALYSIS APPROACH:
 - Identify what EVERYONE does (table stakes) vs what NO ONE does well (opportunities)
 - Consider: features, pricing, target markets, use cases, technical approaches
 - Be specific and actionable - avoid generic insights
-- Focus on whitespace where target startup could win
+- Focus on whitespace where target startup could win{self.lang_instruction}
 
 Respond ONLY with valid JSON, no markdown formatting."""
 

@@ -15,13 +15,14 @@ from urllib.parse import urlparse
 class MarketDiscovery:
     """Discovers market competitors and analyzes target startup."""
 
-    def __init__(self, parallel_api_key: str, gemini_api_key: str):
+    def __init__(self, parallel_api_key: str, gemini_api_key: str, language: str = "en"):
         """
         Initialize Market Discovery with API keys.
 
         Args:
             parallel_api_key: Parallel AI API key
             gemini_api_key: Google Gemini API key
+            language: Language for analysis ("en" or "pt")
         """
         self.parallel_api_key = parallel_api_key
         self.base_url = "https://api.parallel.ai"
@@ -39,6 +40,12 @@ class MarketDiscovery:
         # Configure Gemini
         genai.configure(api_key=gemini_api_key)
         self.gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
+
+        # Language support
+        self.language = language
+        self.lang_instruction = ""
+        if language == "pt":
+            self.lang_instruction = "\n\nIMPORTANTE: Escreva TODO o conteúdo em PORTUGUÊS BRASILEIRO. Use terminologia de negócios em português."
 
     def _extract_with_jina_reader(self, url: str) -> str:
         """
@@ -255,7 +262,7 @@ Return a JSON object with these fields:
 
 CRITICAL: Extract the company name from THIS specific website ({url}), not from any other source!
 
-If content is insufficient, analyze the domain name: {url.split('//')[1].split('/')[0]}
+If content is insufficient, analyze the domain name: {url.split('//')[1].split('/')[0]}{self.lang_instruction}
 
 Respond ONLY with valid JSON, no markdown formatting."""
 
@@ -724,7 +731,7 @@ STRICT FILTERING RULES:
 3. Exclude tangentially related companies, infrastructure providers, or general tech platforms
 4. Exclude the target company itself: {company_name}
 5. Limit to the {max_competitors} most directly competitive companies
-6. Only include companies that are clearly described as product/platform providers{geographic_filter_rule}
+6. Only include companies that are clearly described as product/platform providers{geographic_filter_rule}{self.lang_instruction}
 
 Respond ONLY with a valid JSON array, no markdown formatting."""
 
